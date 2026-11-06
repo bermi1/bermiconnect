@@ -1,0 +1,44 @@
+# /etc/caddy/Caddyfile  — Caddy obtains and renews Let's Encrypt certificates automatically.
+{
+	email ops@bermiconnect.co.tz
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	log {
+		output file /var/log/caddy/{args[0]}.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+	}
+}
+
+app.bermiconnect.co.tz {
+	import common app
+	reverse_proxy 127.0.0.1:8080
+}
+
+api.bermiconnect.co.tz {
+	import common api
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy 127.0.0.1:4000 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+docs.bermiconnect.co.tz {
+	import common docs
+	reverse_proxy 127.0.0.1:8081
+}
+
+bermiconnect.co.tz, www.bermiconnect.co.tz {
+	redir https://app.bermiconnect.co.tz{uri} permanent
+}

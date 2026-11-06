@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bermi Connect User Guide</title>
+<meta name="description" content="How schools and businesses use Bermi Connect: contacts, groups, sender IDs, wallet top-ups, campaigns and delivery reports. With Swahili summaries.">
+<meta name="theme-color" content="#0E7C66">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650;12..96,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/docs.css">
+<style>
+  .guide-hero { padding: 56px 0 36px; max-width: 760px; }
+  .guide-hero h1 { font-size: clamp(34px, 5vw, 52px); }
+  .who { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 26px 0 0; }
+  .who div { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; font-size: 15px; }
+  .who strong { display: block; font-family: var(--display); font-size: 17px; margin-bottom: 2px; }
+  .csv { font-family: var(--mono); font-size: 13.5px; }
+  .pay { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 14px 0 20px; }
+  .pay div { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 14px 16px; font-size: 14.5px; }
+  .pay strong { display: block; margin-bottom: 4px; font-size: 15.5px; }
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="topbar">
+  <button class="icon-btn menu-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <a class="brand" href="./"><img class="brand-mark" src="assets/logo.svg" alt="">Bermi Connect <small>User guide</small></a>
+  <nav aria-label="Site">
+    <a href="user-guide.html" aria-current="page">User guide</a>
+    <a href="./" class="hide-sm">Developers</a>
+    <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+    <a class="btn" href="https://app.bermiconnect.co.tz/register">Sign up</a>
+  </nav>
+</header>
+
+<div class="layout">
+<aside class="sidebar" id="sidebar" aria-label="Guide sections">
+  <h4>Getting started</h4>
+  <ul>
+    <li><a href="#sign-up">Sign up</a></li>
+    <li><a href="#contacts">Add contacts</a></li>
+    <li><a href="#csv">Import a CSV file</a></li>
+    <li><a href="#groups">Groups</a></li>
+    <li><a href="#sender-id">Request a sender ID</a></li>
+    <li><a href="#top-up">Top up your wallet</a></li>
+  </ul>
+  <h4>Sending</h4>
+  <ul>
+    <li><a href="#campaign">Create a campaign</a></li>
+    <li><a href="#personalise">Personalisation tags</a></li>
+    <li><a href="#schedule">Schedule for later</a></li>
+    <li><a href="#templates">Ready-made templates</a></li>
+  </ul>
+  <h4>After sending</h4>
+  <ul>
+    <li><a href="#reports">Delivery reports</a></li>
+    <li><a href="#opt-out">Opt-outs (STOP)</a></li>
+    <li><a href="#costs">What a message costs</a></li>
+    <li><a href="#help">Get help</a></li>
+  </ul>
+</aside>
+
+<main id="content">
+<div class="content">
+
+<section id="intro" style="border-top:0;padding-top:0">
+  <div class="guide-hero">
+    <h1>Send your first campaign in an afternoon</h1>
+    <p class="lead">This guide walks a school office or a small business through Bermi Connect from sign-up to a delivery report. You don't need any technical knowledge.</p>
+    <span class="sw">Mwongozo huu unakuonyesha jinsi ya kujisajili, kuweka namba za simu, kuongeza salio na kutuma ujumbe kwa watu wengi kwa mara moja.</span>
+    <div class="who">
+      <div><strong>Schools</strong>Fee reminders, exam results, meeting notices and emergencies to every parent.</div>
+      <div><strong>Businesses</strong>Offers, delivery updates, appointment reminders and payment receipts.</div>
+      <div><strong>Churches &amp; groups</strong>Service times, contributions and event reminders to members.</div>
+    </div>
+  </div>
+</section>
+
+<section id="sign-up">
+  <h2>Sign up</h2>
+  <ol class="plain prose">
+    <li>Go to <a href="https://app.bermiconnect.co.tz/register">app.bermiconnect.co.tz</a> and choose <strong>Create account</strong>.</li>
+    <li>Pick your account type: <strong>School</strong>, <strong>Business</strong>, <strong>Developer</strong> or <strong>Other</strong>. This only changes the examples you see.</li>
+    <li>Enter your name, email, a password, your organisation's name and a phone number we can reach you on.</li>
+    <li>You land on the dashboard with <strong>TZS 500 free credit</strong>, enough for 27 short messages to try things out.</li>
+  </ol>
+  <p class="prose">You can invite colleagues later (for example the bursar and the academic master) so everyone uses the same wallet and contacts.</p>
+  <span class="sw">Jisajili kwenye app.bermiconnect.co.tz, chagua aina ya akaunti (Shule au Biashara), na utapata salio la bure la TZS 500 kuanza.</span>
+</section>
+
+<section id="contacts">
+  <h2>Add contacts</h2>
+  <div class="prose">
+    <p>Open <strong>Contacts</strong>. Click <strong>Add contact</strong> to type one person in, or <strong>Import CSV</strong> to upload many at once (see below).</p>
+    <p>Type phone numbers however you normally write them: <code>0712 345 678</code>, <code>255712345678</code> or <code>+255712345678</code> all work, and Bermi Connect stores them in one standard form. If the same number is added twice, the existing contact is updated rather than duplicated.</p>
+  </div>
+  <span class="sw">Fungua "Contacts" kuweka namba moja moja au kupakia faili la CSV. Namba inaweza kuandikwa 07..., 255... au +255...; mfumo utazipanga zenyewe.</span>
+</section>
+
+<section id="csv">
+  <h2>Import a CSV file</h2>
+  <div class="prose">
+    <p>A CSV file is a simple spreadsheet. In Excel or Google Sheets, put your list in columns and choose <strong>File → Save as / Download → CSV</strong>. The first row must be the column names.</p>
+  </div>
+  <div class="table-wrap"><table class="csv">
+    <thead><tr><th>phone</th><th>first_name</th><th>last_name</th><th>student</th><th>class</th><th>balance</th></tr></thead>
+    <tbody>
+      <tr><td>0712345678</td><td>Juma</td><td>Mrisho</td><td>Neema Juma</td><td>Form 4B</td><td>150,000</td></tr>
+      <tr><td>0754000111</td><td>Rehema</td><td>Kweka</td><td>Baraka Kweka</td><td>Form 4A</td><td>0</td></tr>
+      <tr><td>+255688123456</td><td>Peter</td><td>Massawe</td><td>Lucy Massawe</td><td>Form 2C</td><td>75,000</td></tr>
+    </tbody>
+  </table></div>
+  <ul class="plain prose">
+    <li><code>phone</code> is required. <code>first_name</code> and <code>last_name</code> are optional but recommended.</li>
+    <li>Any extra column (like <code>student</code>, <code>class</code> or <code>balance</code>) is saved too, and you can use it in messages as <span class="tag">{{student}}</span>.</li>
+    <li>Use simple column names: lowercase letters and underscores, no spaces.</li>
+    <li>On the import screen, choose a group to put everyone into, for example <em>Form 4 Parents</em>. You'll see a preview of the first rows and any problems before you confirm.</li>
+    <li>Rows with an invalid phone number are skipped and listed so you can fix them; the rest are imported.</li>
+  </ul>
+  <span class="sw">Andaa faili la Excel lenye safu ya kwanza: phone, first_name, last_name (na nyingine kama student, class). Hifadhi kama CSV kisha pakia. Safu za ziada zinaweza kutumika ndani ya ujumbe.</span>
+</section>
+
+<section id="groups">
+  <h2>Groups</h2>
+  <div class="prose">
+    <p>A group is a named list you send to, such as <em>Form 4 Parents</em>, <em>Teaching Staff</em> or <em>VIP Customers</em>. One person can be in several groups; if you send to two groups at once, someone in both still gets only one message.</p>
+    <p>Create groups under <strong>Contacts → Groups → New group</strong>. Add people by importing a CSV into the group, or by ticking contacts in the table and choosing <strong>Add to group</strong>. Deleting a group never deletes the contacts in it.</p>
+    <p>A tip for schools: make one group per class and one per form (for example <em>Form 4A Parents</em> and <em>Form 4 Parents</em>), and refresh them at the start of each year.</p>
+  </div>
+  <span class="sw">Kikundi ni orodha yenye jina, mfano "Wazazi wa Kidato cha 4". Mtu mmoja anaweza kuwa kwenye vikundi vingi lakini atapokea ujumbe mmoja tu.</span>
+</section>
+
+<section id="sender-id">
+  <h2>Request a sender ID</h2>
+  <div class="prose">
+    <p>The sender ID is the name people see instead of a phone number, for example <strong>KIBASILA</strong> or <strong>DUKALAJUMA</strong>. Until yours is approved, messages go out as <strong>BERMI</strong>.</p>
+    <ol class="plain">
+      <li>Open <strong>Sender IDs → Request sender ID</strong>.</li>
+      <li>Enter the name: 3 to 11 letters or numbers, no spaces or symbols. It should clearly match your organisation's name.</li>
+      <li>Explain what you'll send (for example "School notices and fee reminders to parents"). Networks reject vague requests.</li>
+      <li>We may ask for a letter on your letterhead or your business registration (BRELA) or school registration number.</li>
+    </ol>
+    <p>Sender IDs are registered with each mobile network under TCRA rules, which usually takes <strong>3 to 7 working days</strong>. Its status shows as <em>Pending</em>, then <em>Approved</em> or <em>Rejected</em> with a reason. Names that copy a bank, government office or another brand are not allowed.</p>
+  </div>
+  <span class="sw">Omba jina la mtumaji (herufi 3 hadi 11, bila nafasi) chini ya "Sender IDs". Linasajiliwa na mitandao ndani ya siku 3 hadi 7 za kazi. Kabla ya kuidhinishwa, ujumbe utatoka kama BERMI.</span>
+</section>
+
+<section id="top-up">
+  <h2>Top up your wallet</h2>
+  <div class="prose">
+    <p>Bermi Connect is prepaid. Open <strong>Wallet → Top up</strong>, enter an amount in TZS and pick how to pay:</p>
+  </div>
+  <div class="pay">
+    <div><strong>M-Pesa (Vodacom)</strong>Enter your M-Pesa number. A prompt appears on your phone; enter your PIN to confirm.</div>
+    <div><strong>Tigo Pesa / Mixx by Yas</strong>Enter your Tigo Pesa number and confirm the prompt with your PIN.</div>
+    <div><strong>Airtel Money</strong>Enter your Airtel number and confirm the prompt with your PIN.</div>
+    <div><strong>Card</strong>Visa or Mastercard through a secure payment page.</div>
+  </div>
+  <div class="prose">
+    <p>The balance updates as soon as the payment is confirmed, and every top-up and charge appears under <strong>Transactions</strong>. If money left your phone but the balance didn't change within 10 minutes, send us the transaction ID from the confirmation SMS.</p>
+  </div>
+  <span class="sw">Ongeza salio kupitia M-Pesa, Tigo Pesa, Airtel Money au kadi kwenye "Wallet". Utapokea ombi kwenye simu yako; weka PIN kuthibitisha.</span>
+</section>
+
+<section id="campaign">
+  <h2>Create a campaign</h2>
+  <div class="prose">
+    <p>A campaign is one message sent to one or more groups. Open <strong>Campaigns → New campaign</strong> and follow the steps:</p>
+  </div>
+  <ol class="steps">
+    <li><div><h3>Name it</h3><p class="prose">Only you see the name, for example "Term 3 fee reminder, Form 4".</p></div></li>
+    <li><div><h3>Choose the audience</h3><p class="prose">Tick one or more groups. You'll see how many people will receive it; anyone who has opted out is left out automatically.</p></div></li>
+    <li><div><h3>Write the message</h3><p class="prose">Type the message or start from a template. The counter below the box shows characters, how many SMS that is, and the total cost. Pick your sender ID.</p></div></li>
+    <li><div><h3>Send now or schedule</h3><p class="prose">Choose <strong>Send now</strong>, or pick a date and time (Tanzania time).</p></div></li>
+    <li><div><h3>Review and confirm</h3><p class="prose">Check the preview for one real contact, the number of recipients and the cost, then click <strong>Send campaign</strong> or <strong>Schedule campaign</strong>.</p></div></li>
+  </ol>
+  <span class="sw">Kampeni: weka jina, chagua vikundi, andika ujumbe (utaona idadi ya SMS na gharama), chagua kutuma sasa au baadaye, kisha thibitisha.</span>
+</section>
+
+<section id="personalise">
+  <h2>Personalisation tags</h2>
+  <div class="prose">
+    <p>Tags in double curly brackets are replaced with each person's details when the message is sent.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tag</th><th>Becomes</th></tr></thead>
+    <tbody>
+      <tr><td><span class="tag">{{first_name}}</span></td><td>The contact's first name</td></tr>
+      <tr><td><span class="tag">{{last_name}}</span></td><td>The contact's last name</td></tr>
+      <tr><td><span class="tag">{{student}}</span>, <span class="tag">{{class}}</span>, <span class="tag">{{balance}}</span> …</td><td>Any extra column from your CSV, using the column name</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose">You write:</p>
+  <div class="preview-sms">Habari {{first_name}}, ada ya {{student}} ({{class}}) iliyobaki ni TZS {{balance}}. Tafadhali lipa kabla ya 30/11. Asante.</div>
+  <p class="prose">Juma receives:</p>
+  <div class="preview-sms">Habari Juma, ada ya Neema Juma (Form 4B) iliyobaki ni TZS 150,000. Tafadhali lipa kabla ya 30/11. Asante.</div>
+  <p class="prose">If a contact has no value for a tag, it is left blank, so check your file before sending. Long names can make one person's message longer than another's; the cost estimate already accounts for that.</p>
+  <span class="sw">Tumia {{first_name}} au jina la safu yoyote ya CSV ndani ya mabano mawili; kila mtu atapokea ujumbe wenye taarifa zake.</span>
+</section>
+
+<section id="schedule">
+  <h2>Schedule for later</h2>
+  <div class="prose">
+    <p>In step 4 of a campaign, choose <strong>Schedule</strong> and pick a date and time. Times are East Africa Time. The cost is reserved from your wallet when you schedule, so make sure there's enough balance.</p>
+    <p>Until it starts, a scheduled campaign can be edited or cancelled from <strong>Campaigns</strong>. Cancelling returns the reserved amount to your wallet. Good sending hours are between 7:00 and 20:00; avoid very early or late messages to parents and customers.</p>
+  </div>
+  <span class="sw">Unaweza kupanga ujumbe utoke tarehe na saa fulani. Kabla haujaanza kutumwa, unaweza kuubadilisha au kuusitisha na pesa kurudi kwenye salio.</span>
+</section>
+
+<section id="templates">
+  <h2>Ready-made templates</h2>
+  <p class="prose">Save messages you send often under <strong>Templates</strong>. Some examples to start from:</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Use</th><th>Message</th></tr></thead>
+    <tbody>
+      <tr><td>Fee reminder</td><td>Ndugu {{first_name}}, tunakukumbusha ada ya {{student}} ya muhula huu ni TZS {{balance}}. Lipa kabla ya 30/11. Asante.</td></tr>
+      <tr><td>Exam results</td><td>Habari {{first_name}}, matokeo ya mtihani wa {{student}} yametoka. Tembelea shule au portal kuyaona.</td></tr>
+      <tr><td>Parents meeting</td><td>Mzazi {{first_name}}, mkutano wa wazazi utafanyika Jumamosi 22/11 saa 3:00 asubuhi ukumbini. Karibu.</td></tr>
+      <tr><td>Business offer</td><td>Hi {{first_name}}, 20% off all items this weekend at our Kariakoo shop. Show this SMS at the counter.</td></tr>
+      <tr><td>Appointment</td><td>Hello {{first_name}}, this is a reminder of your appointment tomorrow at {{time}}. Reply STOP to opt out.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="reports">
+  <h2>Delivery reports</h2>
+  <div class="prose">
+    <p>Open a campaign to watch it live. The counters show how many messages were sent, delivered and failed. The table below lists every recipient with a status:</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Status</th><th>What it means</th><th>Charged?</th></tr></thead>
+    <tbody>
+      <tr><td>Queued</td><td>Waiting to go out, or waiting for its scheduled time.</td><td>Reserved</td></tr>
+      <tr><td>Sent</td><td>Handed to the mobile network; waiting for the phone to confirm.</td><td>Yes</td></tr>
+      <tr><td>Delivered</td><td>The phone received it.</td><td>Yes</td></tr>
+      <tr><td>Failed</td><td>The network couldn't deliver it, usually because the phone was off for too long or the number is no longer in use.</td><td>No, refunded</td></tr>
+      <tr><td>Rejected</td><td>Refused before delivery, for example a blocked number.</td><td>No, refunded</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose">A phone that's switched off may show <em>Sent</em> for several hours, then change to <em>Delivered</em> when it comes back on. Click <strong>Export CSV</strong> to download the report, and use the <em>Failed</em> filter to find numbers to correct. Every message you've ever sent is also under <strong>Messages</strong>.</p>
+  <span class="sw">Ripoti inaonyesha nani amepokea (Delivered) na nani hajapokea (Failed). Ujumbe ulioshindwa unarudishiwa pesa. Unaweza kupakua ripoti kama CSV.</span>
+</section>
+
+<section id="opt-out">
+  <h2>Opt-outs (STOP)</h2>
+  <div class="prose">
+    <p>Anyone can reply <strong>STOP</strong> to stop receiving messages. Bermi Connect marks them as opted out immediately, and future campaigns skip them without charging you. Opted-out contacts show a label in <strong>Contacts</strong>.</p>
+    <p>Only switch someone back on if they ask you to. TCRA rules require that people can refuse promotional messages, so for marketing it's good practice to end with "Reply STOP to opt out". Important notices to parents of current students are fine without it.</p>
+  </div>
+  <span class="sw">Mtu akijibu STOP hatapokea tena ujumbe wako na hutalipishwa kwa ajili yake. Kwa matangazo ya biashara, ongeza "Jibu STOP kuacha kupokea".</span>
+</section>
+
+<section id="costs">
+  <h2>What a message costs</h2>
+  <div class="prose">
+    <p>Each SMS costs <strong>TZS 18</strong>. A normal SMS holds 160 characters. Longer messages are sent as several parts that join on the phone, and each part is charged (306 characters is 2 SMS, TZS 36).</p>
+    <p>Emoji and some special symbols (like curly quotes copied from Word) make the message hold only 70 characters per SMS. The counter turns amber when this happens; remove the symbol to bring the cost back down.</p>
+    <p>Example: a 140-character fee reminder to 400 parents is 400 SMS, which costs TZS 7,200.</p>
+  </div>
+  <span class="sw">SMS moja ni TZS 18 kwa herufi hadi 160. Ujumbe mrefu zaidi hulipiwa kwa kila sehemu. Emoji hupunguza herufi kuwa 70 kwa SMS moja.</span>
+</section>
+
+<section id="help">
+  <h2>Get help</h2>
+  <p class="prose">Email <a href="mailto:support@bermiconnect.co.tz">support@bermiconnect.co.tz</a> with your account email and, for a payment problem, the transaction ID. If you work with a developer, send them to the <a href="./">developer documentation</a>.</p>
+  <span class="sw">Kwa msaada, tuma barua pepe kwa support@bermiconnect.co.tz pamoja na barua pepe ya akaunti yako.</span>
+</section>
+
+<footer class="site">
+  <span>Bermi Connect by Bermi Techs, Dar es Salaam</span>
+  <span><a href="./">Developer docs</a></span>
+</footer>
+</div>
+</main>
+</div>
+<script src="assets/docs.js"></script>
+</body>
+</html>

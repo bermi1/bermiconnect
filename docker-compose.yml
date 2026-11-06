@@ -1,0 +1,132 @@
+# Bermi Connect — full stack.
+#   cp .env.example .env   # then edit secrets
+#   docker compose up -d --build
+#   docker compose run --rm api npm run migrate
+#
+# Ports bind to 127.0.0.1 so only the reverse proxy (Caddy/nginx on the host) is public.
+# For local development without a proxy, open http://localhost:8080 (app), :4000 (API), :8081 (docs).
+
+name: bermi-connect
+
+x-backend: &backend
+  build:
+    context: ./backend
+  image: bermi-connect/backend:latest
+  restart: unless-stopped
+  env_file: .env
+  environment:
+    # Service hostnames inside the compose network override localhost values from .env
+    DATABASE_URL: postgres://${POSTGRES_USER:-bermi}:${POSTGRES_PASSWORD:-bermi}@postgres:5432/${POSTGRES_DB:-bermi_connect}
+    REDIS_URL: redis://redis:6379
+    PORT: 4000
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bermi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bermi}
+      POSTGRES_DB: ${POSTGRES_DB:-bermi_connect}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # AOF persistence so queued/delayed (scheduled) jobs survive restarts
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    <<: *backend
+    command: ["npm", "run", "start:api"]
+    ports:
+      - "127.0.0.1:4000:4000"
+    healthcheck:
+      # /v1/health returns 503 when a dependency is down; only db+redis gate "healthy" here
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/v1/health >/dev/null 2>&1 || node -e \"fetch('http://127.0.0.1:4000/v1/health').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    <<: *backend
+    command: ["npm", "run", "worker"]
+    # Exactly ONE worker: it holds the single SMPP bind that Textify allows per system_id.
+    deploy:
+      replicas: 1
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f worker >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:4000/v1}
+        VITE_DOCS_URL: ${VITE_DOCS_URL:-http://localhost:8081}
+    image: bermi-connect/frontend:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  docs:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    volumes:
+      - ./docs:/usr/share/nginx/html:ro
+      - ./deploy/docs-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "127.0.0.1:8081:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional: local mock SMSC for staging (`docker compose --profile mock up -d`).
+  # Set TEXTIFY_SMPP_HOST=mock-smsc in .env to use it.
+  mock-smsc:
+    <<: *backend
+    command: ["npm", "run", "mock-smsc"]
+    profiles: ["mock"]
+    healthcheck:
+      disable: true
+
+volumes:
+  pgdata:
+  redisdata:

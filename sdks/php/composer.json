@@ -1,0 +1,17 @@
+{
+  "name": "bermitechs/bermi-connect",
+  "description": "Official PHP SDK for the Bermi Connect bulk SMS API (Tanzania).",
+  "type": "library",
+  "license": "MIT",
+  "keywords": ["sms", "bulk-sms", "tanzania", "otp", "bermi"],
+  "homepage": "https://docs.bermiconnect.co.tz",
+  "authors": [{ "name": "Bermi Techs", "email": "support@bermiconnect.co.tz" }],
+  "require": {
+    "php": ">=8.1",
+    "ext-json": "*"
+  },
+  "suggest": { "ext-curl": "Faster HTTP transport; falls back to streams when missing" },
+  "autoload": { "psr-4": { "BermiTechs\\BermiConnect\\": "src/" } },
+  "autoload-dev": { "psr-4": { "BermiTechs\\BermiConnect\\Tests\\": "tests/" } },
+  "scripts": { "test": "php tests/run.php" }
+}

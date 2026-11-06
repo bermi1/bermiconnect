@@ -1,0 +1,2156 @@
+openapi: 3.1.0
+info:
+  title: Bermi Connect API
+  version: 1.0.0
+  summary: Bulk SMS, campaigns and OTP for Tanzania.
+  description: |
+    Bermi Connect is a bulk SMS and campaign platform by Bermi Techs (Dar es Salaam).
+    Messages are delivered to Tanzanian and international networks through Textify over SMPP.
+
+    **Base URL:** `https://api.bermiconnect.co.tz/v1` (local: `http://localhost:4000/v1`).
+
+    **Envelope.** Every success response is `{ "data": ..., "meta"?: {page, per_page, total} }`.
+    Every error is `{ "error": { "code": "...", "message": "..." } }`.
+
+    **Auth.** Developer endpoints accept an API key (`Authorization: Bearer bc_live_...`
+    or `X-API-Key: bc_live_...`) or a dashboard JWT. Dashboard resources need a JWT or a
+    *live* API key. `bc_test_` keys simulate sends: no provider call, no charge, and the
+    message ends in `delivered`.
+
+    **Pricing.** cost = segments x price per segment (default TZS 18). GSM-7: 160 chars
+    single / 153 per part. UCS-2: 70 single / 67 per part.
+
+    **Rate limits.** 100 requests per minute per API key by default. Exceeding it returns
+    `429 rate_limited` with a `Retry-After` header.
+  contact:
+    name: Bermi Techs
+    email: support@bermiconnect.co.tz
+    url: https://docs.bermiconnect.co.tz
+  license:
+    name: Proprietary
+    identifier: LicenseRef-Proprietary
+servers:
+  - url: https://api.bermiconnect.co.tz/v1
+    description: Production
+  - url: http://localhost:4000/v1
+    description: Local development
+security:
+  - ApiKeyBearer: []
+  - ApiKeyHeader: []
+  - BearerJWT: []
+tags:
+  - name: Auth
+    description: Dashboard registration and login (returns a JWT).
+  - name: Account
+    description: The signed-in user and account statistics.
+  - name: SMS
+    description: Send single and bulk SMS, look up messages.
+  - name: OTP
+    description: One-time passcodes with server-side verification.
+  - name: Balance
+    description: Wallet balance, transactions and top-ups.
+  - name: Contacts
+    description: 'Your address book. Phones are stored in E.164.'
+  - name: Groups
+    description: 'Named lists of contacts, e.g. "Form 4 Parents".'
+  - name: Templates
+    description: 'Reusable message bodies with personalisation tags.'
+  - name: Sender IDs
+    description: 'Alphanumeric names messages are sent from.'
+  - name: Campaigns
+    description: 'Send one message to one or more groups, now or later.'
+  - name: API keys
+    description: 'Create and revoke developer keys.'
+  - name: Webhooks
+    description: 'Event notifications to your server.'
+  - name: Admin
+    description: Platform administrators only (emails listed in `ADMIN_EMAILS`).
+  - name: Public
+    description: Unauthenticated endpoints.
+
+paths:
+  # ---------------------------------------------------------------- Auth
+  /auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Create an account
+      description: Creates an account, its owner user, and credits the signup bonus (`SIGNUP_FREE_CREDIT_TZS`, default TZS 500).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+            example:
+              name: Asha Mwakyusa
+              email: asha@kibasila.sc.tz
+              password: S3cure-pass!
+              account_name: Kibasila Secondary School
+              account_type: school
+              phone: '0712345678'
+      responses:
+        '201':
+          description: Account created.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Log in
+      description: Returns a JWT valid for 7 days.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+            example: { email: asha@kibasila.sc.tz, password: S3cure-pass! }
+      responses:
+        '200':
+          description: Logged in.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthEnvelope' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /me:
+    get:
+      tags: [Account]
+      operationId: getMe
+      summary: Current user and account
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [user, account]
+                    properties:
+                      user: { $ref: '#/components/schemas/User' }
+                      account: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /account/stats:
+    get:
+      tags: [Account]
+      operationId: getAccountStats
+      summary: Dashboard statistics
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/AccountStats' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ---------------------------------------------------------------- SMS
+  /sms/send:
+    post:
+      tags: [SMS]
+      operationId: sendSms
+      summary: Send SMS (single or bulk)
+      description: |
+        Queues one message per recipient (max 1000 per request). Numbers are normalised to E.164
+        (`0712345678`, `712345678`, `255712345678` and `+255712345678` all become `+255712345678`).
+        Duplicate recipients in one request are sent once. Balance is reserved at enqueue and
+        refunded for messages that end `failed` or `rejected`.
+
+        Pass `schedule_at` (ISO 8601, future) to delay delivery. With a `bc_test_` key nothing is
+        sent or charged and every message moves to `delivered`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SendSmsRequest' }
+            examples:
+              single:
+                summary: One recipient
+                value:
+                  to: '0712345678'
+                  message: Habari! Mkutano wa wazazi ni Jumamosi saa 3 asubuhi.
+                  sender_id: KIBASILA
+                  reference: meeting-2026-11
+              bulk:
+                summary: Many recipients
+                value:
+                  to: ['+255712345678', '0754000111', '255688123456']
+                  message: Fee reminder - term 3 fees are due on 30 Nov.
+                  sender_id: KIBASILA
+              scheduled:
+                summary: Scheduled send
+                value:
+                  to: '0712345678'
+                  message: Exam results are now available.
+                  schedule_at: '2026-11-20T06:00:00+03:00'
+      responses:
+        '202':
+          description: Accepted and queued.
+          headers:
+            X-RateLimit-Limit: { $ref: '#/components/headers/X-RateLimit-Limit' }
+            X-RateLimit-Remaining: { $ref: '#/components/headers/X-RateLimit-Remaining' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SendSmsResult' }
+              example:
+                data:
+                  batch_id: 6c1f9b8e-3f7a-4c2a-9a55-2a8f0d1e7b11
+                  messages:
+                    - id: 0b9a3c2e-1d4f-4e8a-b0c1-7f6e5d4c3b2a
+                      to: '+255712345678'
+                      status: queued
+                      segments: 1
+                      cost_tzs: 18
+                  total_cost_tzs: 18
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientBalance' }
+        '422': { $ref: '#/components/responses/SenderNotApproved' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /sms/{id}:
+    get:
+      tags: [SMS]
+      operationId: getSms
+      summary: Get a message
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /sms:
+    get:
+      tags: [SMS]
+      operationId: listSms
+      summary: List messages
+      description: Newest first.
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/MessageStatus' }
+        - name: from
+          in: query
+          description: Created at or after (ISO 8601 date or datetime).
+          schema: { type: string, format: date-time }
+        - name: to
+          in: query
+          description: Created at or before (ISO 8601 date or datetime). Not a phone filter.
+          schema: { type: string, format: date-time }
+        - name: campaign_id
+          in: query
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Message' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ---------------------------------------------------------------- OTP
+  /otp/send:
+    post:
+      tags: [OTP]
+      operationId: sendOtp
+      summary: Send a one-time passcode
+      description: Generates a numeric code, stores only its hash, and sends it by SMS. Charged like any SMS.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OtpSendRequest' }
+            example:
+              phone: '0712345678'
+              sender_id: BERMI
+              length: 6
+              expires_in: 300
+              template: 'Your Duka code is {{code}}. It expires in 5 minutes.'
+      responses:
+        '200':
+          description: Code sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/OtpSendResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '402': { $ref: '#/components/responses/InsufficientBalance' }
+        '422': { $ref: '#/components/responses/SenderNotApproved' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /otp/verify:
+    post:
+      tags: [OTP]
+      operationId: verifyOtp
+      summary: Verify a one-time passcode
+      description: 'Returns `verified: false` for a wrong, expired or already-used code. After 5 wrong attempts the OTP is locked.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OtpVerifyRequest' }
+            example: { otp_id: 9d2f0c1a-8b7e-4c6d-a5f4-3e2d1c0b9a87, code: '482913' }
+      responses:
+        '200':
+          description: Verification result.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    required: [verified]
+                    properties:
+                      verified: { type: boolean }
+              example: { data: { verified: true } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  # ---------------------------------------------------------------- Balance / wallet
+  /balance:
+    get:
+      tags: [Balance]
+      operationId: getBalance
+      summary: Get wallet balance
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Balance' }
+              example: { data: { balance_tzs: 12450, price_per_sms_tzs: 18 } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /transactions:
+    get:
+      tags: [Balance]
+      operationId: listTransactions
+      summary: List wallet transactions
+      security: [{ BearerJWT: [] }, { ApiKeyBearer: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Transaction' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /wallet/topup:
+    post:
+      tags: [Balance]
+      operationId: topupWallet
+      summary: Top up the wallet
+      description: |
+        Starts a top-up. For mobile money the customer receives a USSD push on `phone` to confirm.
+        The transaction is `pending` until the payment provider confirms it. In non-production
+        environments `manual` credits immediately.
+      security: [{ BearerJWT: [] }, { ApiKeyBearer: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TopupRequest' }
+            example: { amount_tzs: 50000, method: mpesa, phone: '0754000111' }
+      responses:
+        '201':
+          description: Top-up created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Topup' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ---------------------------------------------------------------- Contacts
+  /contacts:
+    get:
+      tags: [Contacts]
+      operationId: listContacts
+      summary: List contacts
+      security: &dashboard [{ BearerJWT: [] }, { ApiKeyBearer: [] }, { ApiKeyHeader: [] }]
+      parameters:
+        - name: q
+          in: query
+          description: Search phone, first or last name.
+          schema: { type: string }
+        - name: group_id
+          in: query
+          schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Contact' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Contacts]
+      operationId: createContact
+      summary: Create a contact
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactInput' }
+            example:
+              phone: '0712345678'
+              first_name: Juma
+              last_name: Mrisho
+              fields: { student: Neema Juma, class: Form 4B }
+              group_ids: [3a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /contacts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Contacts]
+      operationId: getContact
+      summary: Get a contact
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Contact' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Contacts]
+      operationId: updateContact
+      summary: Update a contact
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ContactUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Contact' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Contacts]
+      operationId: deleteContact
+      summary: Delete a contact
+      security: *dashboard
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /contacts/import:
+    post:
+      tags: [Contacts]
+      operationId: importContacts
+      summary: Import contacts from CSV
+      description: |
+        Multipart upload. Header row required: `phone,first_name,last_name` plus any extra columns,
+        which are stored in `fields` and usable as `{{column_name}}` in messages. Existing phones are
+        updated (upsert). Invalid rows are reported, not fatal.
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  contentMediaType: text/csv
+                  description: CSV file, UTF-8, max 5 MB.
+                group_id:
+                  type: string
+                  format: uuid
+                  description: Add every imported contact to this group.
+      responses:
+        '200':
+          description: Import summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ImportResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  # ---------------------------------------------------------------- Groups
+  /groups:
+    get:
+      tags: [Groups]
+      operationId: listGroups
+      summary: List groups
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Group' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Groups]
+      operationId: createGroup
+      summary: Create a group
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GroupInput' }
+            example: { name: Form 4 Parents, description: Parents and guardians of Form 4 students }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Group' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /groups/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Groups]
+      operationId: getGroup
+      summary: Get a group
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Group' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Groups]
+      operationId: updateGroup
+      summary: Update a group
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GroupInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Group' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Groups]
+      operationId: deleteGroup
+      summary: Delete a group
+      description: Deletes the group only; its contacts are kept.
+      security: *dashboard
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /groups/{id}/contacts:
+    post:
+      tags: [Groups]
+      operationId: addGroupContacts
+      summary: Add contacts to a group
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [contact_ids]
+              properties:
+                contact_ids:
+                  type: array
+                  minItems: 1
+                  items: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Contacts added (already-present members are ignored).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      added: { type: integer }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /groups/{id}/contacts/{contactId}:
+    delete:
+      tags: [Groups]
+      operationId: removeGroupContact
+      summary: Remove a contact from a group
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: contactId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204': { description: Removed }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Templates
+  /templates:
+    get:
+      tags: [Templates]
+      operationId: listTemplates
+      summary: List templates
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Template' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+    post:
+      tags: [Templates]
+      operationId: createTemplate
+      summary: Create a template
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateInput' }
+            example:
+              name: Fee reminder
+              body: 'Ndugu {{first_name}}, ada ya muhula wa 3 ya {{student}} ni TZS {{balance}}. Asante.'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Template' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /templates/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Templates]
+      operationId: getTemplate
+      summary: Get a template
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Template' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Templates]
+      operationId: updateTemplate
+      summary: Update a template
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TemplateInput' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Template' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Templates]
+      operationId: deleteTemplate
+      summary: Delete a template
+      security: *dashboard
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Sender IDs
+  /sender-ids:
+    get:
+      tags: [Sender IDs]
+      operationId: listSenderIds
+      summary: List sender IDs
+      description: Includes the platform default (`BERMI`), which is always approved.
+      security: *dashboard
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SenderId' } }
+    post:
+      tags: [Sender IDs]
+      operationId: requestSenderId
+      summary: Request a sender ID
+      description: Created with status `pending` until an administrator approves it (registration with the network operators).
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SenderIdInput' }
+            example: { name: KIBASILA, purpose: School notices to parents and guardians }
+      responses:
+        '201':
+          description: Requested
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SenderId' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /sender-ids/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Sender IDs]
+      operationId: getSenderId
+      summary: Get a sender ID
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SenderId' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Sender IDs]
+      operationId: updateSenderId
+      summary: Update a pending request's purpose
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                purpose: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SenderId' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Sender IDs]
+      operationId: deleteSenderId
+      summary: Delete a sender ID
+      security: *dashboard
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Campaigns
+  /campaigns:
+    get:
+      tags: [Campaigns]
+      operationId: listCampaigns
+      summary: List campaigns
+      security: *dashboard
+      parameters:
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/CampaignStatus' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Campaign' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+    post:
+      tags: [Campaigns]
+      operationId: createCampaign
+      summary: Create a campaign (draft)
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignInput' }
+            example:
+              name: Term 3 fee reminder
+              sender_id: KIBASILA
+              body: 'Habari {{first_name}}, ada ya {{student}} inadaiwa kabla ya 30 Nov. Asante.'
+              group_ids: [3a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d]
+              scheduled_at: '2026-11-20T07:00:00+03:00'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '422': { $ref: '#/components/responses/SenderNotApproved' }
+  /campaigns/estimate:
+    post:
+      tags: [Campaigns]
+      operationId: estimateCampaign
+      summary: Estimate recipients and cost
+      description: Counts unique, non-opted-out recipients across the groups and renders the body per recipient to total segments.
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [group_ids, body]
+              properties:
+                group_ids: { type: array, items: { type: string, format: uuid } }
+                body: { type: string }
+      responses:
+        '200':
+          description: Estimate
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/CampaignEstimate' }
+              example: { data: { recipients: 412, segments: 412, cost_tzs: 10300 } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /campaigns/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Campaigns]
+      operationId: getCampaign
+      summary: Get a campaign
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Campaigns]
+      operationId: updateCampaign
+      summary: Update a draft or scheduled campaign
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      tags: [Campaigns]
+      operationId: deleteCampaign
+      summary: Delete a draft campaign
+      security: *dashboard
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /campaigns/{id}/send:
+    post:
+      tags: [Campaigns]
+      operationId: sendCampaign
+      summary: Send or schedule a campaign
+      description: Sends now, or at `scheduled_at` if it is set and in the future. Balance is checked against the estimate.
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '202':
+          description: Dispatch started or scheduled.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '402': { $ref: '#/components/responses/InsufficientBalance' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/SenderNotApproved' }
+  /campaigns/{id}/cancel:
+    post:
+      tags: [Campaigns]
+      operationId: cancelCampaign
+      summary: Cancel a scheduled or sending campaign
+      description: Messages not yet handed to the network are cancelled and refunded.
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /campaigns/{id}/messages:
+    get:
+      tags: [Campaigns]
+      operationId: listCampaignMessages
+      summary: Campaign delivery report
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/MessageStatus' }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, meta]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Message' } }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- API keys
+  /api-keys:
+    get:
+      tags: [API keys]
+      operationId: listApiKeys
+      summary: List API keys
+      description: Only the prefix of each key is returned.
+      security: *dashboard
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/ApiKey' } }
+    post:
+      tags: [API keys]
+      operationId: createApiKey
+      summary: Create an API key
+      description: The full key is returned **once** in `key`. Store it securely.
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, maxLength: 100, examples: [Production server] }
+                mode: { type: string, enum: [live, test], default: live }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ApiKeyCreated' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /api-keys/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [API keys]
+      operationId: getApiKey
+      summary: Get an API key
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ApiKey' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [API keys]
+      operationId: renameApiKey
+      summary: Rename an API key
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/ApiKey' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [API keys]
+      operationId: revokeApiKey
+      summary: Revoke an API key
+      security: *dashboard
+      responses:
+        '204': { description: Revoked }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Webhooks
+  /webhooks:
+    get:
+      tags: [Webhooks]
+      operationId: listWebhooks
+      summary: List webhooks
+      security: *dashboard
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/Webhook' } }
+    post:
+      tags: [Webhooks]
+      operationId: createWebhook
+      summary: Create a webhook
+      description: The signing `secret` is generated if you do not provide one, and returned in the response.
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookInput' }
+            example:
+              url: https://example.co.tz/hooks/bermi
+              events: [message.delivered, message.failed]
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Webhook' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /webhooks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Webhooks]
+      operationId: getWebhook
+      summary: Get a webhook
+      security: *dashboard
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Webhook' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [Webhooks]
+      operationId: updateWebhook
+      summary: Update a webhook
+      security: *dashboard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookUpdate' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Webhook' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Webhooks]
+      operationId: deleteWebhook
+      summary: Delete a webhook
+      security: *dashboard
+      responses:
+        '204': { description: Deleted }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /webhooks/{id}/test:
+    post:
+      tags: [Webhooks]
+      operationId: testWebhook
+      summary: Send a test event
+      description: Delivers a signed `message.delivered` sample payload to the webhook URL and reports the response.
+      security: *dashboard
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Test delivered (or attempted).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      ok: { type: boolean }
+                      status_code: { type: [integer, 'null'] }
+                      duration_ms: { type: integer }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Admin
+  /admin/sender-ids:
+    get:
+      tags: [Admin]
+      operationId: adminListSenderIds
+      summary: List sender ID requests
+      security: [{ BearerJWT: [] }]
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [pending, approved, rejected] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SenderId' } }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/sender-ids/{id}/approve:
+    post:
+      tags: [Admin]
+      operationId: adminApproveSenderId
+      summary: Approve a sender ID
+      security: [{ BearerJWT: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      responses:
+        '200':
+          description: Approved
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SenderId' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/sender-ids/{id}/reject:
+    post:
+      tags: [Admin]
+      operationId: adminRejectSenderId
+      summary: Reject a sender ID
+      security: [{ BearerJWT: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+      responses:
+        '200':
+          description: Rejected
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/SenderId' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /admin/accounts/{id}/credit:
+    post:
+      tags: [Admin]
+      operationId: adminCreditAccount
+      summary: Credit an account
+      security: [{ BearerJWT: [] }]
+      parameters:
+        - $ref: '#/components/parameters/Id'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount_tzs]
+              properties:
+                amount_tzs: { type: number, exclusiveMinimum: 0 }
+                description: { type: string }
+      responses:
+        '200':
+          description: Credited
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/Transaction' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  # ---------------------------------------------------------------- Public
+  /health:
+    get:
+      tags: [Public]
+      operationId: health
+      summary: Health check
+      security: []
+      responses:
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '200':
+          description: Service status.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { ok: true, db: true, redis: true, smpp: bound }
+        '503':
+          description: A dependency is down.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+              example: { ok: false, db: true, redis: true, smpp: down }
+  /inbound/textify:
+    post:
+      tags: [Public]
+      operationId: inboundTextify
+      summary: Textify HTTP callback (MO and DLR)
+      description: |
+        Fallback for when Textify pushes inbound messages or delivery receipts over HTTP instead of SMPP
+        `deliver_sm`. Not for customer use. Inbound bodies equal to `STOP` (case-insensitive) opt the
+        sender out across all accounts.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TextifyInbound' }
+          application/x-www-form-urlencoded:
+            schema: { $ref: '#/components/schemas/TextifyInbound' }
+      responses:
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '200': { description: Accepted }
+
+webhooks:
+  message.delivered:
+    post:
+      operationId: onMessageDelivered
+      summary: Message delivered
+      description: Sent when the network confirms delivery (`stat:DELIVRD`).
+      parameters:
+        - $ref: '#/components/parameters/SignatureHeader'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookMessageEvent' }
+            example:
+              event: message.delivered
+              created_at: '2026-11-05T10:15:32.120Z'
+              data:
+                id: 0b9a3c2e-1d4f-4e8a-b0c1-7f6e5d4c3b2a
+                to_phone: '+255712345678'
+                sender_id: KIBASILA
+                status: delivered
+                segments: 1
+                cost_tzs: 18
+                reference: meeting-2026-11
+                campaign_id: null
+                error_code: null
+                sent_at: '2026-11-05T10:15:28.004Z'
+                delivered_at: '2026-11-05T10:15:31.880Z'
+      responses:
+        '200': { description: Return any 2xx within 10 seconds to acknowledge. }
+  message.failed:
+    post:
+      operationId: onMessageFailed
+      summary: Message failed
+      description: Sent when a message ends `failed` or `rejected`. The cost has already been refunded.
+      parameters:
+        - $ref: '#/components/parameters/SignatureHeader'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookMessageEvent' }
+      responses:
+        '200': { description: Acknowledged }
+  campaign.completed:
+    post:
+      operationId: onCampaignCompleted
+      summary: Campaign completed
+      parameters:
+        - $ref: '#/components/parameters/SignatureHeader'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookCampaignEvent' }
+      responses:
+        '200': { description: Acknowledged }
+  message.inbound:
+    post:
+      operationId: onMessageInbound
+      summary: Inbound message received
+      parameters:
+        - $ref: '#/components/parameters/SignatureHeader'
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookInboundEvent' }
+      responses:
+        '200': { description: Acknowledged }
+
+components:
+  securitySchemes:
+    ApiKeyBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: bc_live_* / bc_test_*
+      description: 'API key in the Authorization header: `Authorization: Bearer bc_live_...`'
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: 'API key in a dedicated header: `X-API-Key: bc_live_...`'
+    BearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Dashboard session token from `/auth/login` (7-day expiry).
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    SignatureHeader:
+      name: X-Bermi-Signature
+      in: header
+      required: true
+      description: '`sha256=` followed by the hex HMAC-SHA256 of the raw request body, keyed with the webhook secret.'
+      schema: { type: string, pattern: '^sha256=[0-9a-f]{64}$' }
+
+  headers:
+    X-RateLimit-Limit:
+      description: Requests allowed per minute.
+      schema: { type: integer, examples: [100] }
+    X-RateLimit-Remaining:
+      description: Requests left in the current window.
+      schema: { type: integer }
+    Retry-After:
+      description: Seconds to wait before retrying.
+      schema: { type: integer }
+
+  responses:
+    ValidationError:
+      description: The request body or query is invalid.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: validation_error
+              message: 'to: 0712 is not a valid phone number'
+              details: [{ path: to, message: 'Invalid phone number' }]
+    Unauthorized:
+      description: Missing, invalid, expired or revoked credentials.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: unauthorized, message: Invalid API key } }
+    InsufficientBalance:
+      description: The wallet cannot cover the cost.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: insufficient_balance, message: 'Need TZS 2500.00, balance is TZS 1200.00' } }
+    Forbidden:
+      description: Authenticated but not allowed (e.g. test key on a dashboard route, or non-admin).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: forbidden, message: Test keys cannot access this resource } }
+    NotFound:
+      description: Resource does not exist in this account.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: not_found, message: Message not found } }
+    Conflict:
+      description: Duplicate or wrong state.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: conflict, message: Email already registered } }
+    SenderNotApproved:
+      description: The sender ID is not approved for this account.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: sender_not_approved, message: Sender ID KIBASILA is pending approval } }
+    RateLimited:
+      description: Too many requests.
+      headers:
+        Retry-After: { $ref: '#/components/headers/Retry-After' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: { code: rate_limited, message: 'Rate limit of 100 requests/min exceeded' } }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { $ref: '#/components/schemas/ErrorCode' }
+            message: { type: string }
+            details:
+              description: Field-level problems (validation errors only).
+              type: array
+              items:
+                type: object
+                properties:
+                  path: { type: string }
+                  message: { type: string }
+    ErrorCode:
+      type: string
+      enum:
+        - validation_error
+        - unauthorized
+        - insufficient_balance
+        - forbidden
+        - not_found
+        - conflict
+        - sender_not_approved
+        - rate_limited
+        - internal_error
+    PageMeta:
+      type: object
+      required: [page, per_page, total]
+      properties:
+        page: { type: integer }
+        per_page: { type: integer }
+        total: { type: integer }
+
+    Phone:
+      type: string
+      description: Tanzanian local (`07xx`/`06xx`), international without plus (`2557xx`), or E.164 (`+2557xx`). Stored and returned as E.164.
+      examples: ['+255712345678', '0712345678']
+    E164:
+      type: string
+      pattern: '^\+[1-9][0-9]{7,14}$'
+      examples: ['+255712345678']
+    SenderIdName:
+      type: string
+      description: Alphanumeric, 3 to 11 characters, no spaces.
+      pattern: '^[A-Za-z0-9]{3,11}$'
+      examples: [BERMI]
+
+    RegisterRequest:
+      type: object
+      required: [name, email, password, account_name, account_type, phone]
+      properties:
+        name: { type: string }
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        account_name: { type: string }
+        account_type: { $ref: '#/components/schemas/AccountType' }
+        phone: { $ref: '#/components/schemas/Phone' }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    AuthEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [token, user, account]
+          properties:
+            token: { type: string, description: 'JWT, valid 7 days.' }
+            user: { $ref: '#/components/schemas/User' }
+            account: { $ref: '#/components/schemas/Account' }
+    AccountType:
+      type: string
+      enum: [school, business, developer, other]
+    Account:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { $ref: '#/components/schemas/AccountType' }
+        phone: { $ref: '#/components/schemas/E164' }
+        balance_tzs: { type: number }
+        created_at: { type: string, format: date-time }
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { type: string, enum: [owner, admin, member] }
+        created_at: { type: string, format: date-time }
+    AccountStats:
+      type: object
+      properties:
+        balance_tzs: { type: number }
+        sent_today: { type: integer }
+        sent_30d: { type: integer }
+        delivered_rate: { type: number, description: '0 to 1', minimum: 0, maximum: 1 }
+        campaigns_active: { type: integer }
+        contacts_total: { type: integer }
+        daily:
+          type: array
+          description: Last 14 days, oldest first.
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              sent: { type: integer }
+              delivered: { type: integer }
+              failed: { type: integer }
+
+    MessageStatus:
+      type: string
+      enum: [queued, sent, delivered, failed, rejected]
+      description: |
+        `queued` accepted and waiting (or scheduled) -> `sent` handed to the network (submit_sm_resp OK)
+        -> `delivered` handset receipt. `failed` = network reported failure; `rejected` = refused before
+        or at submission (bad number, opted out at send time, provider rejection). Failed and rejected
+        messages are refunded.
+    Encoding:
+      type: string
+      enum: [GSM7, UCS2]
+    SendSmsRequest:
+      type: object
+      required: [to, message]
+      properties:
+        to:
+          oneOf:
+            - $ref: '#/components/schemas/Phone'
+            - type: array
+              minItems: 1
+              maxItems: 1000
+              items: { $ref: '#/components/schemas/Phone' }
+        message:
+          type: string
+          minLength: 1
+          maxLength: 1530
+          description: Text to send. Long text is split into concatenated segments.
+        sender_id:
+          $ref: '#/components/schemas/SenderIdName'
+          description: An approved sender ID. Defaults to the platform default (`BERMI`).
+        reference:
+          type: string
+          maxLength: 100
+          description: Your own reference, echoed back on the message and in webhooks.
+        schedule_at:
+          type: string
+          format: date-time
+          description: Future ISO 8601 time. Omit to send now.
+    SendSmsResult:
+      type: object
+      required: [batch_id, messages, total_cost_tzs]
+      properties:
+        batch_id: { type: string, format: uuid }
+        messages:
+          type: array
+          items:
+            type: object
+            required: [id, to, status, segments, cost_tzs]
+            properties:
+              id: { type: string, format: uuid }
+              to: { $ref: '#/components/schemas/E164' }
+              status: { $ref: '#/components/schemas/MessageStatus' }
+              segments: { type: integer }
+              cost_tzs: { type: number }
+        total_cost_tzs: { type: number }
+    Message:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        campaign_id: { type: [string, 'null'], format: uuid }
+        api_key_id: { type: [string, 'null'], format: uuid }
+        to_phone: { $ref: '#/components/schemas/E164' }
+        sender_id: { type: string }
+        body: { type: string }
+        segments: { type: integer }
+        encoding: { $ref: '#/components/schemas/Encoding' }
+        status: { $ref: '#/components/schemas/MessageStatus' }
+        provider_message_id: { type: [string, 'null'] }
+        error_code: { type: [string, 'null'], description: 'Network status such as UNDELIV, EXPIRED, REJECTD, or an SMPP command_status.' }
+        cost_tzs: { type: number }
+        reference: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+        sent_at: { type: [string, 'null'], format: date-time }
+        delivered_at: { type: [string, 'null'], format: date-time }
+      example:
+        id: 0b9a3c2e-1d4f-4e8a-b0c1-7f6e5d4c3b2a
+        account_id: 1f2e3d4c-5b6a-4978-8a9b-0c1d2e3f4a5b
+        campaign_id: null
+        api_key_id: 7a6b5c4d-3e2f-4a1b-9c8d-7e6f5a4b3c2d
+        to_phone: '+255712345678'
+        sender_id: KIBASILA
+        body: Habari! Mkutano wa wazazi ni Jumamosi saa 3 asubuhi.
+        segments: 1
+        encoding: GSM7
+        status: delivered
+        provider_message_id: '3F2A91C0'
+        error_code: null
+        cost_tzs: 18
+        reference: meeting-2026-11
+        created_at: '2026-11-05T10:15:27.500Z'
+        sent_at: '2026-11-05T10:15:28.004Z'
+        delivered_at: '2026-11-05T10:15:31.880Z'
+
+    OtpSendRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        sender_id: { $ref: '#/components/schemas/SenderIdName' }
+        length: { type: integer, minimum: 4, maximum: 10, default: 6 }
+        expires_in: { type: integer, minimum: 30, maximum: 3600, default: 300, description: Seconds. }
+        template:
+          type: string
+          default: 'Your code is {{code}}'
+          description: Must contain `{{code}}`.
+    OtpSendResult:
+      type: object
+      required: [otp_id, expires_at]
+      properties:
+        otp_id: { type: string, format: uuid }
+        expires_at: { type: string, format: date-time }
+      example: { otp_id: 9d2f0c1a-8b7e-4c6d-a5f4-3e2d1c0b9a87, expires_at: '2026-11-05T10:20:27.500Z' }
+    OtpVerifyRequest:
+      type: object
+      required: [otp_id, code]
+      properties:
+        otp_id: { type: string, format: uuid }
+        code: { type: string, pattern: '^[0-9]{4,10}$' }
+
+    Balance:
+      type: object
+      required: [balance_tzs, price_per_sms_tzs]
+      properties:
+        balance_tzs: { type: number }
+        price_per_sms_tzs: { type: number, description: Price per segment. }
+    Transaction:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        type: { type: string, enum: [topup, charge, refund, bonus] }
+        amount_tzs: { type: number, description: 'Positive for credits, negative for charges.' }
+        balance_after: { type: number }
+        description: { type: string }
+        reference: { type: [string, 'null'] }
+        created_at: { type: string, format: date-time }
+    TopupRequest:
+      type: object
+      required: [amount_tzs, method]
+      properties:
+        amount_tzs: { type: number, minimum: 1000 }
+        method: { type: string, enum: [mpesa, tigopesa, airtel, card, manual] }
+        phone:
+          $ref: '#/components/schemas/Phone'
+          description: Mobile money number to charge. Required for mpesa, tigopesa and airtel.
+    Topup:
+      type: object
+      properties:
+        transaction_id: { type: [string, 'null'], format: uuid }
+        status: { type: string, enum: [pending, completed, failed] }
+        amount_tzs: { type: number }
+        method: { type: string }
+        reference: { type: string }
+        balance_tzs: { type: number }
+
+    Contact:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        phone: { $ref: '#/components/schemas/E164' }
+        first_name: { type: [string, 'null'] }
+        last_name: { type: [string, 'null'] }
+        fields:
+          type: object
+          additionalProperties: { type: string }
+          description: Extra columns, usable as `{{key}}` in messages.
+        opted_out: { type: boolean }
+        group_ids: { type: array, items: { type: string, format: uuid } }
+        created_at: { type: string, format: date-time }
+    ContactInput:
+      type: object
+      required: [phone]
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        first_name: { type: string }
+        last_name: { type: string }
+        fields: { type: object, additionalProperties: { type: string } }
+        group_ids: { type: array, items: { type: string, format: uuid } }
+    ContactUpdate:
+      type: object
+      properties:
+        phone: { $ref: '#/components/schemas/Phone' }
+        first_name: { type: string }
+        last_name: { type: string }
+        fields: { type: object, additionalProperties: { type: string } }
+        opted_out: { type: boolean }
+    ImportResult:
+      type: object
+      properties:
+        imported: { type: integer, description: New contacts created. }
+        updated: { type: integer, description: Existing contacts updated. }
+        skipped: { type: integer }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              row: { type: integer }
+              message: { type: string }
+    Group:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: [string, 'null'] }
+        contact_count: { type: integer }
+        created_at: { type: string, format: date-time }
+    GroupInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 100 }
+        description: { type: string }
+    Template:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        body: { type: string }
+        created_at: { type: string, format: date-time }
+    TemplateInput:
+      type: object
+      required: [name, body]
+      properties:
+        name: { type: string }
+        body: { type: string, description: 'Supports {{first_name}}, {{last_name}} and {{any_field}}.' }
+    SenderId:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        account_id: { type: string, format: uuid }
+        name: { $ref: '#/components/schemas/SenderIdName' }
+        purpose: { type: string }
+        status: { type: string, enum: [pending, approved, rejected] }
+        created_at: { type: string, format: date-time }
+    SenderIdInput:
+      type: object
+      required: [name, purpose]
+      properties:
+        name: { $ref: '#/components/schemas/SenderIdName' }
+        purpose: { type: string, description: What the sender ID will be used for (needed for operator registration). }
+
+    CampaignStatus:
+      type: string
+      enum: [draft, scheduled, sending, completed, failed, cancelled]
+    Campaign:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        sender_id: { type: string }
+        body: { type: string }
+        status: { $ref: '#/components/schemas/CampaignStatus' }
+        scheduled_at: { type: [string, 'null'], format: date-time }
+        group_ids: { type: array, items: { type: string, format: uuid } }
+        total_recipients: { type: integer }
+        sent_count: { type: integer }
+        delivered_count: { type: integer }
+        failed_count: { type: integer }
+        cost_tzs: { type: number }
+        created_at: { type: string, format: date-time }
+        started_at: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+    CampaignInput:
+      type: object
+      required: [name, body, group_ids]
+      properties:
+        name: { type: string }
+        sender_id: { $ref: '#/components/schemas/SenderIdName' }
+        body: { type: string }
+        group_ids: { type: array, minItems: 1, items: { type: string, format: uuid } }
+        scheduled_at: { type: [string, 'null'], format: date-time }
+    CampaignUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        sender_id: { $ref: '#/components/schemas/SenderIdName' }
+        body: { type: string }
+        group_ids: { type: array, items: { type: string, format: uuid } }
+        scheduled_at: { type: [string, 'null'], format: date-time }
+    CampaignEstimate:
+      type: object
+      required: [recipients, segments, cost_tzs]
+      properties:
+        recipients: { type: integer }
+        segments: { type: integer, description: Total segments across all recipients. }
+        cost_tzs: { type: number }
+
+    ApiKey:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        prefix: { type: string, examples: [bc_live_a1b2] }
+        mode: { type: string, enum: [live, test] }
+        last_used_at: { type: [string, 'null'], format: date-time }
+        revoked_at: { type: [string, 'null'], format: date-time }
+        created_at: { type: string, format: date-time }
+    ApiKeyCreated:
+      allOf:
+        - $ref: '#/components/schemas/ApiKey'
+        - type: object
+          required: [key]
+          properties:
+            key: { type: string, description: 'Full key. Shown only once.', examples: [bc_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6] }
+
+    WebhookEvent:
+      type: string
+      enum: [message.delivered, message.failed, campaign.completed, message.inbound]
+    Webhook:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        events: { type: array, items: { $ref: '#/components/schemas/WebhookEvent' } }
+        secret: { type: string, description: HMAC signing secret. }
+        active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    WebhookInput:
+      type: object
+      required: [url, events]
+      properties:
+        url: { type: string, format: uri, description: Must be HTTPS in production. }
+        events: { type: array, minItems: 1, items: { $ref: '#/components/schemas/WebhookEvent' } }
+        secret: { type: string, minLength: 16 }
+        active: { type: boolean, default: true }
+    WebhookUpdate:
+      type: object
+      properties:
+        url: { type: string, format: uri }
+        events: { type: array, items: { $ref: '#/components/schemas/WebhookEvent' } }
+        active: { type: boolean }
+    WebhookMessageEvent:
+      type: object
+      required: [event, data, created_at]
+      properties:
+        event: { type: string, enum: [message.delivered, message.failed] }
+        created_at: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            to_phone: { $ref: '#/components/schemas/E164' }
+            sender_id: { type: string }
+            status: { $ref: '#/components/schemas/MessageStatus' }
+            segments: { type: integer }
+            cost_tzs: { type: number }
+            reference: { type: [string, 'null'] }
+            campaign_id: { type: [string, 'null'], format: uuid }
+            error_code: { type: [string, 'null'] }
+            sent_at: { type: [string, 'null'], format: date-time }
+            delivered_at: { type: [string, 'null'], format: date-time }
+    WebhookCampaignEvent:
+      type: object
+      required: [event, data, created_at]
+      properties:
+        event: { type: string, const: campaign.completed }
+        created_at: { type: string, format: date-time }
+        data: { $ref: '#/components/schemas/Campaign' }
+    WebhookInboundEvent:
+      type: object
+      required: [event, data, created_at]
+      properties:
+        event: { type: string, const: message.inbound }
+        created_at: { type: string, format: date-time }
+        data:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            from_phone: { $ref: '#/components/schemas/E164' }
+            to: { type: string, description: Short code or sender the message was sent to. }
+            body: { type: string }
+            received_at: { type: string, format: date-time }
+            opted_out: { type: boolean, description: True if the body was STOP. }
+
+    Health:
+      type: object
+      required: [ok, db, redis, smpp]
+      properties:
+        ok: { type: boolean }
+        db: { type: boolean }
+        redis: { type: boolean }
+        smpp: { type: string, enum: [bound, down] }
+    TextifyInbound:
+      type: object
+      description: Either an MO message (`from`, `to`, `text`) or a delivery receipt (`message_id`, `status`).
+      properties:
+        type: { type: string, enum: [mo, dlr] }
+        from: { type: string }
+        to: { type: string }
+        text: { type: string }
+        message_id: { type: string }
+        status: { type: string, examples: [DELIVRD, UNDELIV, EXPIRED, REJECTD] }
+        error_code: { type: string }

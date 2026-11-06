@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { -webkit-tap-highlight-color: transparent; }
+  body { @apply bg-paper text-ink font-sans antialiased; font-feature-settings: 'ss01'; }
+  ::selection { background: #F5A52455; }
+  :focus-visible { outline: 2px solid #F5A524; outline-offset: 2px; border-radius: 6px; }
+}
+
+@layer components {
+  /* Elastic press: squish on press, spring back */
+  .press { transition: transform .35s cubic-bezier(.34,1.56,.64,1), background-color .15s, border-color .15s, box-shadow .2s; }
+  .press:active:not(:disabled) { transform: scale(.96); transition-duration: .08s; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold disabled:opacity-50 disabled:cursor-not-allowed select-none whitespace-nowrap; }
+  .btn { transition: transform .35s cubic-bezier(.34,1.56,.64,1), background-color .15s, border-color .15s, color .15s; }
+  .btn:active:not(:disabled) { transform: scale(.96); transition-duration: .08s; }
+  .btn-md { @apply h-11 px-4 text-[15px]; }
+  .btn-lg { @apply h-14 px-6 text-base; }
+  .btn-sm { @apply h-9 px-3 text-sm rounded-lg; }
+  .btn-primary { @apply bg-brand text-white hover:bg-brand-700 active:bg-brand-800; }
+  .btn-accent { @apply bg-amber text-ink hover:bg-amber-400; }
+  .btn-ghost { @apply text-ink-700 hover:bg-ink/5; }
+  .btn-outline { @apply border border-line bg-white text-ink hover:border-ink-300; }
+  .btn-danger { @apply bg-bad text-white hover:bg-[#bf3a33]; }
+
+  .field-label { @apply block text-sm font-semibold text-ink-700 mb-1.5; }
+  .input { @apply w-full h-12 rounded-xl border border-line bg-white px-3.5 text-[15px] text-ink placeholder:text-ink-300 outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10; }
+  .input-error { @apply border-bad focus:border-bad focus:ring-bad/10; }
+  textarea.input { @apply h-auto py-3 leading-relaxed; }
+  .hint { @apply mt-1.5 text-[13px] text-ink-500; }
+  .err { @apply mt-1.5 text-[13px] text-bad font-medium; }
+
+  .panel { @apply bg-white rounded-2xl border border-line; }
+  .table-base { @apply w-full text-sm; }
+  .table-base th { @apply text-left font-semibold text-ink-500 text-[13px] px-4 py-3 border-b border-line bg-paper/60; }
+  .table-base td { @apply px-4 py-3.5 border-b border-line/70 align-middle; }
+  .table-base tr:last-child td { @apply border-b-0; }
+
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 h-7 text-[13px] font-medium; }
+  .skeleton { @apply relative overflow-hidden rounded-lg bg-ink/[0.06]; }
+  .skeleton::after { content: ''; @apply absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite]; background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); }
+
+  /* Signature: the SMS bubble */
+  .bubble { @apply relative rounded-[22px] rounded-bl-md bg-white px-4 py-3 text-[15px] leading-snug text-ink shadow-[0_1px_0_rgba(14,13,42,.06)]; }
+  .bubble-out { @apply relative rounded-[22px] rounded-br-md bg-brand px-4 py-3 text-[15px] leading-snug text-white; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
+
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }

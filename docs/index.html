@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bermi Connect API Docs</title>
+<meta name="description" content="Send SMS, bulk campaigns and OTPs to Tanzanian numbers with the Bermi Connect API. Quick start, reference, webhooks and SDKs.">
+<meta name="theme-color" content="#0E7C66">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,650;12..96,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/docs.css">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<header class="topbar">
+  <button class="icon-btn menu-toggle" aria-label="Open navigation" aria-expanded="false" aria-controls="sidebar">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+  </button>
+  <a class="brand" href="./">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="9" fill="#0E7C66"/><path d="M8 10.5a2.5 2.5 0 0 1 2.5-2.5h11A2.5 2.5 0 0 1 24 10.5v7a2.5 2.5 0 0 1-2.5 2.5H14l-4.2 3.6a.5.5 0 0 1-.8-.4V20.0A2.5 2.5 0 0 1 8 17.5z" fill="#fff"/><circle cx="21.5" cy="9.5" r="3.5" fill="#F5A524"/></svg>
+    Bermi Connect <small>Developers</small>
+  </a>
+  <nav aria-label="Site">
+    <a href="./" aria-current="page" class="hide-xs">Guides</a>
+    <a href="reference.html">Reference</a>
+    <a href="user-guide.html" class="hide-sm">User guide</a>
+    <button class="icon-btn" id="theme-toggle" aria-label="Toggle dark mode">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+    </button>
+    <a class="btn" href="https://app.bermiconnect.co.tz/register">Get API key</a>
+  </nav>
+</header>
+
+<div class="layout">
+<aside class="sidebar" id="sidebar" aria-label="Documentation">
+  <input class="search" type="search" placeholder="Filter sections" aria-label="Filter sections">
+  <h4>Get started</h4>
+  <ul>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#quick-start">Quick start</a></li>
+    <li><a href="#authentication">Authentication</a></li>
+    <li><a href="#phone-numbers">Phone number formats</a></li>
+  </ul>
+  <h4>Messaging</h4>
+  <ul>
+    <li><a href="#send-sms">Send SMS <span class="verb post">POST</span></a></li>
+    <li><a href="#bulk-send">Bulk send <span class="verb post">POST</span></a></li>
+    <li><a href="#scheduling">Scheduling</a></li>
+    <li><a href="#message-status">Message status <span class="verb get">GET</span></a></li>
+    <li><a href="#delivery-reports">Delivery reports</a></li>
+    <li><a href="#otp">OTP send &amp; verify <span class="verb post">POST</span></a></li>
+  </ul>
+  <h4>Account</h4>
+  <ul>
+    <li><a href="#balance">Balance &amp; pricing <span class="verb get">GET</span></a></li>
+    <li><a href="#webhooks">Webhooks</a></li>
+    <li><a href="#campaigns">Campaigns &amp; contacts</a></li>
+  </ul>
+  <h4>Reference</h4>
+  <ul>
+    <li><a href="#errors">Errors</a></li>
+    <li><a href="#rate-limits">Rate limits</a></li>
+    <li><a href="#test-mode">Test mode</a></li>
+    <li><a href="#sdks">SDKs</a></li>
+    <li><a href="#changelog">Changelog</a></li>
+    <li><a href="reference.html">Full API reference</a></li>
+    <li><a href="openapi.yaml">openapi.yaml</a></li>
+  </ul>
+</aside>
+
+<main id="content">
+<div class="content">
+
+<!-- ===================================================== INTRODUCTION -->
+<section id="introduction" style="border-top:0;padding-top:0">
+  <div class="hero">
+    <div>
+      <h1>Reach everyone. Instantly.</h1>
+      <p class="lead">The Bermi Connect API sends SMS to any Tanzanian network (Vodacom, Tigo/Yas, Airtel, Halotel, TTCL) and abroad. One request sends one message or a thousand. You pay TZS 18 per SMS segment from a prepaid wallet.</p>
+      <div class="actions">
+        <a class="btn" href="#quick-start">Send your first SMS</a>
+        <a class="btn ghost" href="reference.html">Browse the reference</a>
+      </div>
+    </div>
+    <div class="composer" aria-labelledby="composer-title">
+      <div class="composer-head">
+        <div class="sender-badge" aria-hidden="true">BC</div>
+        <div><strong id="composer-title">BERMI</strong><span>Type below to see what a message costs</span></div>
+      </div>
+      <div class="bubble-wrap" aria-live="polite">
+        <div class="bubble" id="composer-bubble"></div>
+        <div class="bubble-meta">Delivered</div>
+      </div>
+      <label for="composer-input" class="skip">Message text</label>
+      <textarea id="composer-input" data-price="18" spellcheck="false">Habari Mzazi, mkutano wa wazazi wa Kidato cha 4 utafanyika Jumamosi 22/11 saa 3:00 asubuhi. Karibu!</textarea>
+      <div class="meter">
+        <div class="segments" id="composer-segs" aria-hidden="true"></div>
+        <div class="meter-stats">
+          <span class="enc" id="composer-enc">GSM-7</span>
+          <span><b id="composer-len">0</b> chars</span>
+          <span><b id="composer-segcount">1</b> SMS</span>
+        </div>
+        <div class="cost" id="composer-cost">TZS 18</div>
+      </div>
+      <p class="composer-note" id="composer-note" aria-live="polite"></p>
+      <p class="muted" style="font-size:13px;margin:6px 2px 0">Try:
+        <button class="btn ghost" style="padding:5px 8px;font-size:12.5px" data-composer-preset="Your Duka code is 482913. It expires in 5 minutes.">OTP</button>
+        <button class="btn ghost" style="padding:5px 8px;font-size:12.5px" data-composer-preset="Hongera! 🎉 Matokeo ya mtihani yametoka.">With emoji</button>
+        <button class="btn ghost" style="padding:5px 8px;font-size:12.5px" data-composer-preset="Ndugu Mzazi, tunakukumbusha kuwa ada ya muhula wa tatu kwa mwanafunzi inapaswa kulipwa kabla ya tarehe 30 Novemba 2026. Malipo yafanyike kupitia akaunti ya shule CRDB au M-Pesa. Kwa maswali piga 0712 345 678. Asante.">Long notice</button>
+      </p>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h2>Introduction</h2>
+    <p>Bermi Connect is a REST API with JSON in and JSON out. Every path lives under one base URL:</p>
+  </div>
+  <div data-static data-title="Base URL" data-lang="curl">https://api.bermiconnect.co.tz/v1</div>
+  <div class="prose">
+    <p>Successful responses wrap the result in <code>data</code>. Lists add <code>meta</code> with paging. Failures return an <code>error</code> object with a stable <code>code</code> you can switch on.</p>
+  </div>
+  <div data-static data-title="Response envelope">// success
+{ "data": { ... }, "meta": { "page": 1, "per_page": 50, "total": 412 } }
+
+// error
+{ "error": { "code": "insufficient_balance", "message": "Need TZS 1800.00, balance is TZS 1200.00" } }</div>
+  <div class="prose">
+    <p>Messages travel from the API to a queue, then over a direct SMPP connection to our upstream carrier, Textify, which hands them to the mobile networks. Delivery receipts come back the same way and update the message status, which you can read by polling or receive as a <a href="#webhooks">webhook</a>.</p>
+  </div>
+</section>
+
+<!-- ===================================================== QUICK START -->
+<section id="quick-start">
+  <h2>Quick start</h2>
+  <p class="prose">You can send a real message in about five minutes. New accounts get TZS 360 of free credit, which is 20 single-segment messages.</p>
+  <ol class="steps">
+    <li>
+      <div>
+        <h3>Create an account</h3>
+        <p class="prose">Sign up at <a href="https://app.bermiconnect.co.tz/register">app.bermiconnect.co.tz</a> and choose <em>Developer</em> as the account type (you can also use a School or Business account; the API is the same).</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h3>Get an API key</h3>
+        <p class="prose">Open <strong>Developers → API keys</strong> and create a key. Start with a <strong>test</strong> key (<code>bc_test_…</code>): it behaves exactly like a live key but never sends or charges. The full key is shown once, so put it in an environment variable straight away.</p>
+        <div data-sample="install"></div>
+      </div>
+    </li>
+    <li>
+      <div>
+        <h3>Send your first SMS</h3>
+        <p class="prose">Replace the number with your own. With a test key the message moves to <code>delivered</code> in a couple of seconds; switch to a <code>bc_live_</code> key to see it on your phone.</p>
+        <div data-sample="quick-send"></div>
+        <div data-static data-title="202 Accepted">{
+  "data": {
+    "batch_id": "6c1f9b8e-3f7a-4c2a-9a55-2a8f0d1e7b11",
+    "messages": [
+      { "id": "0b9a3c2e-1d4f-4e8a-b0c1-7f6e5d4c3b2a", "to": "+255712345678", "status": "queued", "segments": 1, "cost_tzs": 18 }
+    ],
+    "total_cost_tzs": 18
+  }
+}</div>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<!-- ===================================================== AUTH -->
+<section id="authentication">
+  <h2>Authentication</h2>
+  <div class="prose">
+    <p>Authenticate every request with an API key. Send it as a bearer token, or in the <code>X-API-Key</code> header if your HTTP client makes bearer tokens awkward. Both are equivalent.</p>
+  </div>
+  <div data-static data-title="Headers" data-lang="curl">Authorization: Bearer bc_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+# or
+X-API-Key: bc_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Key type</th><th>Prefix</th><th>What it does</th></tr></thead>
+    <tbody>
+      <tr><td>Live</td><td><code>bc_live_</code></td><td>Sends real SMS and charges your wallet. Can also manage contacts, groups, campaigns and webhooks.</td></tr>
+      <tr><td>Test</td><td><code>bc_test_</code></td><td>Validates and stores messages but never contacts the network or charges. Statuses go to <code>delivered</code>. Limited to the developer endpoints (SMS, OTP, balance). See <a href="#test-mode">Test mode</a>.</td></tr>
+      <tr><td>Dashboard session</td><td>JWT</td><td>Issued by <code>POST /auth/login</code> for the web app, valid 7 days. Accepted everywhere, but use API keys for servers.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note warn"><strong>Keep keys on the server.</strong><p>Never ship an API key in a mobile app or browser bundle. Keys are stored hashed, so if one leaks, revoke it in the dashboard and create a new one; we cannot show it again.</p></div>
+</section>
+
+<!-- ===================================================== PHONE -->
+<section id="phone-numbers">
+  <h2>Phone number formats</h2>
+  <div class="prose">
+    <p>Pass numbers the way your users type them. Tanzania (+255) is the default country. Spaces, dashes and brackets are removed, then the number is normalised to E.164, which is how it is stored and returned.</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>You send</th><th>Stored as</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>0712345678</code></td><td><code>+255712345678</code></td><td>Local format with leading 0 (07xx, 06xx)</td></tr>
+      <tr><td><code>0688 123 456</code></td><td><code>+255688123456</code></td><td>Spaces are ignored</td></tr>
+      <tr><td><code>712345678</code></td><td><code>+255712345678</code></td><td>9 digits starting 6 or 7</td></tr>
+      <tr><td><code>255712345678</code></td><td><code>+255712345678</code></td><td>Country code without plus</td></tr>
+      <tr><td><code>+255712345678</code></td><td><code>+255712345678</code></td><td>Already E.164</td></tr>
+      <tr><td><code>+254712345678</code></td><td><code>+254712345678</code></td><td>Other countries need the full <code>+</code> form</td></tr>
+      <tr><td><code>0712 34</code></td><td>rejected</td><td><code>400 validation_error</code> naming the bad number</td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose">The SDKs export the same logic as <code>normalizePhone()</code> / <code>normalize_phone()</code> so you can validate input in your own forms.</p>
+</section>
+
+<!-- ===================================================== SEND -->
+<section id="send-sms">
+  <h2>Send SMS</h2>
+  <div class="endpoint"><span class="verb post">POST</span>/v1/sms/send<span class="auth">API key or JWT</span><button class="try-btn" data-try="sms-send">Try it</button></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>to</code><span class="req">required</span></td><td class="type">string | string[]</td><td>One number, or an array of up to 1000. Duplicates are sent once.</td></tr>
+      <tr><td><code>message</code><span class="req">required</span></td><td class="type">string</td><td>The text. Long messages are split automatically (see <a href="#balance">segments</a>).</td></tr>
+      <tr><td><code>sender_id</code></td><td class="type">string</td><td>An approved sender ID, up to 11 letters and digits. Defaults to <code>BERMI</code>.</td></tr>
+      <tr><td><code>reference</code></td><td class="type">string</td><td>Your own ID (order number, user ID). Returned on the message and in webhooks.</td></tr>
+      <tr><td><code>schedule_at</code></td><td class="type">ISO 8601</td><td>Send later instead of now. See <a href="#scheduling">Scheduling</a>.</td></tr>
+    </tbody>
+  </table></div>
+  <div data-sample="sms-send"></div>
+  <div class="prose">
+    <p>The response is <code>202 Accepted</code>: messages are queued, not yet delivered. The cost is taken from your wallet now and refunded automatically if a message ends <code>failed</code> or <code>rejected</code>.</p>
+  </div>
+</section>
+
+<!-- ===================================================== BULK -->
+<section id="bulk-send">
+  <h2>Bulk send</h2>
+  <div class="endpoint"><span class="verb post">POST</span>/v1/sms/send<span class="auth">same endpoint, array of numbers</span><button class="try-btn" data-try="sms-bulk">Try it</button></div>
+  <div class="prose">
+    <p>Pass an array to <code>to</code> to send the same text to up to 1000 numbers in one request. You get one <code>batch_id</code> and one message object per recipient. If any number is invalid the whole request is rejected with <code>400</code>, so nothing is half-sent.</p>
+  </div>
+  <div data-sample="sms-bulk"></div>
+  <div class="prose">
+    <p>For more than 1000 recipients, or for messages that differ per person (<code>Habari {{first_name}}</code>), use a <a href="#campaigns">campaign</a>: upload contacts into a group once and send to the group. Campaigns render personalisation tags per recipient and skip anyone who has opted out.</p>
+  </div>
+  <div class="note"><strong>Balance is checked up front.</strong><p>The request fails with <code>402 insufficient_balance</code> if the wallet cannot cover every recipient. Check <a href="#balance"><code>GET /balance</code></a> before large sends.</p></div>
+</section>
+
+<!-- ===================================================== SCHEDULING -->
+<section id="scheduling">
+  <h2>Scheduling</h2>
+  <div class="endpoint"><span class="verb post">POST</span>/v1/sms/send<span class="auth">with schedule_at</span><button class="try-btn" data-try="sms-schedule">Try it</button></div>
+  <div class="prose">
+    <p>Add <code>schedule_at</code> with a future time in ISO 8601. Include the offset: Tanzania is <code>+03:00</code> all year (no daylight saving). A time without an offset is read as UTC. Scheduled messages stay <code>queued</code> until their time, and the cost is reserved when you schedule.</p>
+  </div>
+  <div data-sample="sms-schedule"></div>
+  <p class="prose">To change or cancel a scheduled bulk send, schedule it as a campaign instead; campaigns can be edited and cancelled with <code>POST /campaigns/{id}/cancel</code>, which refunds everything not yet sent.</p>
+</section>
+
+<!-- ===================================================== STATUS -->
+<section id="message-status">
+  <h2>Message status &amp; lifecycle</h2>
+  <div class="endpoint"><span class="verb get">GET</span>/v1/sms/{id}<span class="auth">API key or JWT</span><button class="try-btn" data-try="sms-get">Try it</button></div>
+  <div class="diagram" role="img" aria-label="Message lifecycle: queued, then sent, then delivered or failed. Queued can also go straight to rejected. Failed and rejected messages are refunded.">
+    <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z"/></marker></defs>
+      <g class="node"><rect x="20" y="88" width="130" height="50" rx="12"/><text x="85" y="118" text-anchor="middle">queued</text></g>
+      <g class="node"><rect x="300" y="88" width="130" height="50" rx="12"/><text x="365" y="118" text-anchor="middle">sent</text></g>
+      <g class="node ok"><rect x="600" y="22" width="140" height="50" rx="12"/><text x="670" y="52" text-anchor="middle">delivered</text></g>
+      <g class="node bad"><rect x="600" y="154" width="140" height="50" rx="12"/><text x="670" y="184" text-anchor="middle">failed</text></g>
+      <g class="node bad"><rect x="300" y="170" width="130" height="50" rx="12"/><text x="365" y="200" text-anchor="middle">rejected</text></g>
+      <path class="edge" d="M150 113 H296" marker-end="url(#arr)"/>
+      <text class="label" x="223" y="104" text-anchor="middle">network accepts</text>
+      <path class="edge" d="M430 105 C 510 80, 530 50, 596 47" marker-end="url(#arr)"/>
+      <text class="label" x="488" y="62" text-anchor="end">DLR DELIVRD</text>
+      <path class="edge" d="M430 122 C 510 150, 530 178, 596 179" marker-end="url(#arr)"/>
+      <text class="label" x="488" y="176" text-anchor="end">DLR UNDELIV</text>
+      <path class="edge" d="M85 138 C 85 190, 200 195, 296 195" marker-end="url(#arr)"/>
+      <text class="label" x="200" y="214" text-anchor="middle">refused at submit</text>
+      <text class="refund" x="670" y="222" text-anchor="middle">refunded</text>
+      <text class="refund" x="365" y="164" text-anchor="middle">refunded</text>
+      <text class="label" x="85" y="76" text-anchor="middle">charged here</text>
+    </svg>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Status</th><th>Meaning</th><th>Final?</th></tr></thead>
+    <tbody>
+      <tr><td><code>queued</code></td><td>Accepted and waiting to go out (or waiting for <code>schedule_at</code>).</td><td>No</td></tr>
+      <tr><td><code>sent</code></td><td>Handed to the network; <code>provider_message_id</code> and <code>sent_at</code> are set.</td><td>No</td></tr>
+      <tr><td><code>delivered</code></td><td>The handset confirmed receipt; <code>delivered_at</code> is set.</td><td>Yes</td></tr>
+      <tr><td><code>failed</code></td><td>The network could not deliver (phone off for too long, invalid subscriber). <code>error_code</code> holds the network status, such as <code>UNDELIV</code> or <code>EXPIRED</code>. Refunded.</td><td>Yes</td></tr>
+      <tr><td><code>rejected</code></td><td>Refused before delivery: blocked number, unregistered sender ID on that network, or carrier rejection. Refunded.</td><td>Yes</td></tr>
+    </tbody>
+  </table></div>
+  <div data-sample="sms-get"></div>
+  <h3 id="list-messages">List messages</h3>
+  <div class="endpoint"><span class="verb get">GET</span>/v1/sms?status=&amp;from=&amp;to=&amp;campaign_id=&amp;page=&amp;per_page=<button class="try-btn" data-try="sms-list">Try it</button></div>
+  <p class="prose">Newest first. <code>from</code> and <code>to</code> are dates (creation time), not phone numbers. <code>per_page</code> is at most 200.</p>
+  <div data-sample="sms-list"></div>
+</section>
+
+<!-- ===================================================== DLR -->
+<section id="delivery-reports">
+  <h2>Delivery reports</h2>
+  <div class="prose">
+    <p>Each network sends a delivery report (DLR) after it tries the handset. Most arrive within seconds; a phone that is switched off can take hours, and networks give up after about 48 hours, at which point the message becomes <code>failed</code> with <code>error_code: "EXPIRED"</code>.</p>
+    <p>You have two ways to follow delivery:</p>
+    <ul class="plain">
+      <li><strong>Webhooks (recommended).</strong> Subscribe to <code>message.delivered</code> and <code>message.failed</code>; we POST to your server as soon as the report arrives. Use the <code>reference</code> you sent to match it to your own records.</li>
+      <li><strong>Polling.</strong> Call <code>GET /sms/{id}</code>, or <code>GET /sms?status=failed&amp;from=…</code> for a batch. Poll no more than every 30 seconds per message.</li>
+    </ul>
+    <p>Campaign delivery reports are available per campaign at <code>GET /campaigns/{id}/messages</code> and as a CSV export in the dashboard.</p>
+  </div>
+</section>
+
+<!-- ===================================================== OTP -->
+<section id="otp">
+  <h2>OTP send &amp; verify</h2>
+  <div class="prose">
+    <p>Let Bermi Connect generate, send, store and check one-time codes so you never handle them yourself. We keep only a hash of the code. A code can be verified once, expires after <code>expires_in</code> seconds, and locks after 5 wrong attempts.</p>
+  </div>
+  <div class="endpoint"><span class="verb post">POST</span>/v1/otp/send<span class="auth">charged as one SMS</span><button class="try-btn" data-try="otp-send">Try it</button></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><code>phone</code><span class="req">required</span></td><td class="type">string</td><td>Any accepted <a href="#phone-numbers">format</a>.</td></tr>
+      <tr><td><code>sender_id</code></td><td class="type">string</td><td>Defaults to <code>BERMI</code>.</td></tr>
+      <tr><td><code>length</code></td><td class="type">integer</td><td>Digits, 4 to 10. Default <code>6</code>.</td></tr>
+      <tr><td><code>expires_in</code></td><td class="type">integer</td><td>Seconds. Default <code>300</code> (5 minutes).</td></tr>
+      <tr><td><code>template</code></td><td class="type">string</td><td>Must contain <code>{{code}}</code>. Default <code>Your code is {{code}}</code>.</td></tr>
+    </tbody>
+  </table></div>
+  <div data-sample="otp-send"></div>
+  <div data-static data-title="200 OK">{ "data": { "otp_id": "9d2f0c1a-8b7e-4c6d-a5f4-3e2d1c0b9a87", "expires_at": "2026-11-05T10:20:27.500Z" } }</div>
+  <div class="endpoint"><span class="verb post">POST</span>/v1/otp/verify<button class="try-btn" data-try="otp-verify">Try it</button></div>
+  <p class="prose">Returns <code>{"verified": true}</code> or <code>{"verified": false}</code>. A wrong, expired or reused code is <code>false</code>, not an error, so you can show one message to the user.</p>
+  <div data-sample="otp-verify"></div>
+  <div class="note"><strong>Rate-limit OTPs per phone in your app too.</strong><p>Allow a resend after 30 to 60 seconds and cap attempts per phone per hour. This protects your wallet from SMS-pumping fraud.</p></div>
+</section>
+
+<!-- ===================================================== BALANCE -->
+<section id="balance">
+  <h2>Balance &amp; pricing</h2>
+  <div class="endpoint"><span class="verb get">GET</span>/v1/balance<span class="auth">API key or JWT</span><button class="try-btn" data-try="balance">Try it</button></div>
+  <div data-sample="balance"></div>
+  <div class="prose">
+    <p>The price is per <strong>segment</strong>: TZS 18 by default, returned as <code>price_per_sms_tzs</code>. A segment is one SMS on the network. The number of segments depends on the length of your text and its encoding.</p>
+    <p>If every character is in the GSM-7 alphabet (English and Swahili letters, digits, common punctuation), a message fits 160 characters. A single character outside it, such as an emoji, curly quotes or <code>ś</code>, switches the whole message to UCS-2, which fits only 70. Characters <code>^ { } [ ] ~ | € \</code> are in GSM-7 but count as two.</p>
+  </div>
+  <div class="seg-grid">
+    <div class="seg-card">
+      <h4><span class="enc">GSM-7</span> Plain text</h4>
+      <p>Letters A–Z, digits, basic punctuation.</p>
+      <table><thead><tr><th>Characters</th><th>Segments</th></tr></thead><tbody>
+        <tr><td>1 – 160</td><td>1 · TZS 18</td></tr>
+        <tr><td>161 – 306</td><td>2 · TZS 36</td></tr>
+        <tr><td>307 – 459</td><td>3 · TZS 54</td></tr>
+        <tr><td>each extra 153</td><td>+1</td></tr>
+      </tbody></table>
+    </div>
+    <div class="seg-card">
+      <h4><span class="enc ucs2">UCS-2</span> Unicode</h4>
+      <p>Emoji, Arabic, curly quotes, accents outside GSM-7.</p>
+      <table><thead><tr><th>Characters</th><th>Segments</th></tr></thead><tbody>
+        <tr><td>1 – 70</td><td>1 · TZS 18</td></tr>
+        <tr><td>71 – 134</td><td>2 · TZS 36</td></tr>
+        <tr><td>135 – 201</td><td>3 · TZS 54</td></tr>
+        <tr><td>each extra 67</td><td>+1</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+  <p class="prose">Use the composer at the <a href="#introduction">top of this page</a> to check a message, or <code>countSegments()</code> in the SDKs. For campaigns, segments are counted after personalisation, so a long <code>{{first_name}}</code> can push one recipient into two segments. Top up from the dashboard by M-Pesa, Tigo Pesa, Airtel Money or card.</p>
+</section>
+
+<!-- ===================================================== WEBHOOKS -->
+<section id="webhooks">
+  <h2>Webhooks</h2>
+  <div class="prose">
+    <p>Register an HTTPS URL in <strong>Developers → Webhooks</strong> (or <code>POST /webhooks</code>) and choose the events you want. We send a JSON <code>POST</code> for each event and expect any <code>2xx</code> within 10 seconds. Failures are retried 5 times with exponential backoff (about 30 s, 1 min, 2 min, 4 min, 8 min).</p>
+  </div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Event</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><code>message.delivered</code></td><td>A delivery report confirms the handset received the message.</td></tr>
+      <tr><td><code>message.failed</code></td><td>A message ends <code>failed</code> or <code>rejected</code>. Its cost has been refunded.</td></tr>
+      <tr><td><code>campaign.completed</code></td><td>Every message in a campaign has a final status.</td></tr>
+      <tr><td><code>message.inbound</code></td><td>Someone replied to you or texted your number. Replies of <code>STOP</code> opt the number out automatically.</td></tr>
+    </tbody>
+  </table></div>
+  <div data-sample="webhook-create"></div>
+  <h3 id="webhook-payloads">Payloads</h3>
+  <div data-static data-title="message.delivered">{
+  "event": "message.delivered",
+  "created_at": "2026-11-05T10:15:32.120Z",
+  "data": {
+    "id": "0b9a3c2e-1d4f-4e8a-b0c1-7f6e5d4c3b2a",
+    "to_phone": "+255712345678",
+    "sender_id": "KIBASILA",
+    "status": "delivered",
+    "segments": 1,
+    "cost_tzs": 18,
+    "reference": "meeting-2026-11",
+    "campaign_id": null,
+    "error_code": null,
+    "sent_at": "2026-11-05T10:15:28.004Z",
+    "delivered_at": "2026-11-05T10:15:31.880Z"
+  }
+}</div>
+  <div data-static data-title="message.failed">{
+  "event": "message.failed",
+  "created_at": "2026-11-05T10:16:02.441Z",
+  "data": {
+    "id": "5e4d3c2b-1a09-4f8e-9d7c-6b5a49382716",
+    "to_phone": "+255754000111",
+    "status": "failed",
+    "error_code": "UNDELIV",
+    "segments": 1,
+    "cost_tzs": 18,
+    "reference": "order-1182"
+  }
+}</div>
+  <div data-static data-title="campaign.completed">{
+  "event": "campaign.completed",
+  "created_at": "2026-11-20T04:12:40.000Z",
+  "data": {
+    "id": "c0ffee00-1234-4abc-8def-001122334455",
+    "name": "Term 3 fee reminder",
+    "status": "completed",
+    "total_recipients": 412,
+    "sent_count": 412,
+    "delivered_count": 398,
+    "failed_count": 14,
+    "cost_tzs": 10300
+  }
+}</div>
+  <div data-static data-title="message.inbound">{
+  "event": "message.inbound",
+  "created_at": "2026-11-05T11:02:10.000Z",
+  "data": {
+    "id": "a1b2c3d4-0000-4e5f-8a9b-c0d1e2f3a4b5",
+    "from_phone": "+255712345678",
+    "to": "BERMI",
+    "body": "STOP",
+    "received_at": "2026-11-05T11:02:09.700Z",
+    "opted_out": true
+  }
+}</div>
+  <h3 id="webhook-signatures">Verify signatures</h3>
+  <div class="prose">
+    <p>Every request carries <code>X-Bermi-Signature: sha256=&lt;hex&gt;</code>, the HMAC-SHA256 of the raw request body keyed with your webhook secret. Compute it yourself and compare in constant time before trusting the payload. Hash the body bytes exactly as received; parsing and re-serialising JSON changes them.</p>
+  </div>
+  <div data-sample="webhook-verify"></div>
+  <p class="prose">Use <strong>Send test event</strong> in the dashboard (or <code>POST /webhooks/{id}/test</code>) to check your endpoint. Deliveries can arrive more than once or out of order, so make your handler idempotent on <code>data.id</code> + <code>event</code>.</p>
+</section>
+
+<!-- ===================================================== CAMPAIGNS -->
+<section id="campaigns">
+  <h2>Campaigns &amp; contacts</h2>
+  <div class="prose">
+    <p>Everything the dashboard does is available over the API with a <strong>live</strong> key: contacts, groups, templates, sender IDs, campaigns and webhooks. A typical school integration syncs its student information system into groups every night, then creates a campaign:</p>
+  </div>
+  <div data-sample="campaign-create"></div>
+  <div data-sample="campaign-send"></div>
+  <p class="prose">Use <code>POST /campaigns/estimate</code> with the same <code>group_ids</code> and <code>body</code> to get the recipient count, total segments and cost before sending. Every endpoint, with schemas, is in the <a href="reference.html">Reference</a>.</p>
+</section>
+
+<!-- ===================================================== ERRORS -->
+<section id="errors">
+  <h2>Errors</h2>
+  <p class="prose">Switch on <code>error.code</code>, not the message text; messages may change. Validation errors add a <code>details</code> array of <code>{ path, message }</code>.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>HTTP</th><th>code</th><th>What happened</th><th>What to do</th></tr></thead>
+    <tbody>
+      <tr><td>400</td><td><code>validation_error</code></td><td>A field is missing or invalid (bad phone, empty message, more than 1000 recipients).</td><td>Fix the request; see <code>details</code>.</td></tr>
+      <tr><td>401</td><td><code>unauthorized</code></td><td>Missing, wrong, revoked or expired key or token.</td><td>Check the header and key prefix.</td></tr>
+      <tr><td>402</td><td><code>insufficient_balance</code></td><td>The wallet cannot cover the cost.</td><td>Top up, then retry.</td></tr>
+      <tr><td>403</td><td><code>forbidden</code></td><td>The key cannot use this endpoint (for example a test key on campaigns).</td><td>Use a live key or dashboard login.</td></tr>
+      <tr><td>404</td><td><code>not_found</code></td><td>The ID does not exist in your account.</td><td>Check the ID and account.</td></tr>
+      <tr><td>409</td><td><code>conflict</code></td><td>Duplicate (email, contact phone, sender ID) or wrong state (sending a completed campaign).</td><td>Read the current resource first.</td></tr>
+      <tr><td>422</td><td><code>sender_not_approved</code></td><td>The <code>sender_id</code> is pending, rejected or not yours.</td><td>Use <code>BERMI</code> until approval.</td></tr>
+      <tr><td>429</td><td><code>rate_limited</code></td><td>Too many requests.</td><td>Wait <code>Retry-After</code> seconds.</td></tr>
+      <tr><td>5xx</td><td><code>internal_error</code></td><td>Something failed on our side.</td><td>Retry GETs with backoff. Before retrying a send, list by <code>reference</code> to avoid duplicates.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ===================================================== RATE LIMITS -->
+<section id="rate-limits">
+  <h2>Rate limits</h2>
+  <div class="prose">
+    <p>Each API key may make <strong>100 requests per minute</strong>. Responses include <code>X-RateLimit-Limit</code> and <code>X-RateLimit-Remaining</code>; a <code>429</code> includes <code>Retry-After</code> in seconds.</p>
+    <p>Request limits are separate from sending speed. One request can carry 1000 recipients, so 100 requests a minute is up to 100,000 messages. Messages then leave our queue at the throughput agreed with the carrier, so very large sends spread over a few minutes. If you need a higher request limit, write to <a href="mailto:support@bermiconnect.co.tz">support@bermiconnect.co.tz</a>.</p>
+  </div>
+</section>
+
+<!-- ===================================================== TEST MODE -->
+<section id="test-mode">
+  <h2>Test mode</h2>
+  <div class="prose">
+    <p>Keys starting <code>bc_test_</code> run the full validation path (phone parsing, sender ID checks, segment counting, cost calculation) and store real message records, but:</p>
+    <ul class="plain">
+      <li>nothing is sent to the network and nothing is charged;</li>
+      <li>messages move <code>queued</code> → <code>sent</code> → <code>delivered</code> within a few seconds, and <code>message.delivered</code> webhooks fire, so you can test your handler end to end;</li>
+      <li>OTPs are stored and verifiable; read the code from the message via <code>GET /sms/{id}</code> while testing;</li>
+      <li>test keys are limited to <code>/sms</code>, <code>/otp</code> and <code>/balance</code>.</li>
+    </ul>
+    <p>For local development of Bermi Connect itself, <code>npm run mock-smsc</code> in the backend starts a mock SMPP server that returns 90% <code>DELIVRD</code> and 10% <code>UNDELIV</code>, so you can see failures and refunds too.</p>
+  </div>
+</section>
+
+<!-- ===================================================== SDKS -->
+<section id="sdks">
+  <h2>SDKs</h2>
+  <p class="prose">Official libraries with no runtime dependencies. They share method names, normalise errors into typed exceptions, retry safe GETs on <code>429</code>/<code>5xx</code>, and never retry a send.</p>
+  <div data-sample="install"></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>JavaScript</th><th>Python</th><th>PHP</th></tr></thead>
+    <tbody>
+      <tr><td>Send</td><td><code>bc.sms.send({...})</code></td><td><code>bc.sms.send(to=, message=)</code></td><td><code>$bc-&gt;sms-&gt;send([...])</code></td></tr>
+      <tr><td>Get / list</td><td><code>sms.get(id)</code>, <code>sms.list()</code></td><td><code>sms.get(id)</code>, <code>sms.list()</code></td><td><code>sms-&gt;get($id)</code>, <code>sms-&gt;list()</code></td></tr>
+      <tr><td>OTP</td><td><code>otp.send()</code>, <code>otp.verify(id, code)</code></td><td><code>otp.send()</code>, <code>otp.verify()</code></td><td><code>otp-&gt;send()</code>, <code>otp-&gt;verify()</code></td></tr>
+      <tr><td>Balance</td><td><code>balance.get()</code></td><td><code>balance.get()</code></td><td><code>balance-&gt;get()</code></td></tr>
+      <tr><td>Webhook signature</td><td><code>webhooks.verifySignature()</code></td><td><code>verify_signature()</code></td><td><code>Webhooks::verifySignature()</code></td></tr>
+      <tr><td>Package</td><td><code>bermi-connect</code> (npm)</td><td><code>bermi_connect</code> (PyPI)</td><td><code>bermitechs/bermi-connect</code></td></tr>
+    </tbody>
+  </table></div>
+  <p class="prose">Any other language works with plain HTTP; the <a href="openapi.yaml">OpenAPI 3.1 file</a> can generate a client with tools like <code>openapi-generator</code>.</p>
+</section>
+
+<!-- ===================================================== CHANGELOG -->
+<section id="changelog">
+  <h2>Changelog</h2>
+  <ol class="changelog">
+    <li><time datetime="2026-11-05">5 November 2026</time><h4>v1.0: public launch</h4>
+      <p class="prose">SMS send (single, bulk up to 1000, scheduled), message status and lists, OTP send and verify, balance, webhooks with HMAC signatures, campaigns, contacts and CSV import, sender ID requests, test keys. SDKs for JavaScript, Python and PHP. Direct SMPP delivery through Textify.</p></li>
+    <li><time>Planned</time><h4>Next</h4>
+      <p class="prose">Idempotency keys for safe retries of <code>POST /sms/send</code>, mobile money top-ups through the API, a second delivery route for failover.</p></li>
+  </ol>
+</section>
+
+<footer class="site">
+  <span>Bermi Connect by Bermi Techs, Dar es Salaam</span>
+  <span><a href="user-guide.html">User guide</a> · <a href="reference.html">Reference</a> · <a href="mailto:support@bermiconnect.co.tz">Support</a></span>
+</footer>
+</div>
+</main>
+</div>
+
+<!-- Try it panel -->
+<div class="scrim" id="scrim"></div>
+<aside class="try-panel" id="try-panel" aria-hidden="true" aria-labelledby="try-title" role="dialog">
+  <div class="try-head"><h3 id="try-title">Try it</h3><button class="icon-btn" id="try-close" aria-label="Close">✕</button></div>
+  <div class="try-body">
+    <div class="field"><label for="try-base">Base URL</label><input id="try-base" type="url" spellcheck="false"><div class="hint">Use http://localhost:4000/v1 for a local backend.</div></div>
+    <div class="field"><label for="try-key">API key</label><input id="try-key" type="password" placeholder="bc_test_…" autocomplete="off" spellcheck="false">
+      <div class="hint"><label style="display:inline;font-weight:400"><input type="checkbox" id="try-remember" style="width:auto;margin-right:6px">Remember for this tab</label> · Requests go straight from your browser to the API.</div></div>
+    <div class="row">
+      <div class="field"><label for="try-method">Method</label><select id="try-method"><option>GET</option><option>POST</option></select></div>
+      <div class="field"><label for="try-path">Path</label><input id="try-path" spellcheck="false"></div>
+    </div>
+    <div class="field"><label for="try-body">JSON body</label><textarea id="try-body" spellcheck="false"></textarea></div>
+    <button class="btn" id="try-send" style="justify-self:start">Send request</button>
+    <div class="try-out"><div class="status" id="try-status">Response appears here.</div><pre><code id="try-out"></code></pre></div>
+  </div>
+</aside>
+
+<script src="assets/docs.js"></script>
+</body>
+</html>

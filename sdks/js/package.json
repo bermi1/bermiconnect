@@ -1,0 +1,26 @@
+{
+  "name": "bermi-connect",
+  "version": "1.0.0",
+  "description": "Official JavaScript/TypeScript SDK for the Bermi Connect bulk SMS API (Tanzania).",
+  "license": "MIT",
+  "author": "Bermi Techs <support@bermiconnect.co.tz>",
+  "homepage": "https://docs.bermiconnect.co.tz",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" }
+  },
+  "files": ["dist", "README.md"],
+  "engines": { "node": ">=18" },
+  "keywords": ["sms", "bulk-sms", "tanzania", "otp", "smpp", "bermi"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}

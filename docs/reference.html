@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bermi Connect API Reference</title>
+<meta name="description" content="Complete OpenAPI 3.1 reference for the Bermi Connect bulk SMS API.">
+<link rel="icon" href="assets/logo.svg" type="image/svg+xml">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,650;12..96,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --green: #0E7C66; --ink: #0B1F1A; --paper: #F4F8F6; }
+  body { margin: 0; background: #fff; color: var(--ink); font-family: Inter, system-ui, sans-serif; }
+  .bar { position: sticky; top: 0; z-index: 10; height: 56px; display: flex; align-items: center; gap: 16px; padding: 0 16px;
+         background: var(--paper); border-bottom: 1px solid #D5E3DD; }
+  .bar a { color: var(--ink); text-decoration: none; font-size: 14px; font-weight: 500; }
+  .bar .brand { display: flex; align-items: center; gap: 10px; font: 700 17px/1 "Bricolage Grotesque", Inter, sans-serif; }
+  .bar .brand img { width: 28px; height: 28px; }
+  .bar nav { margin-left: auto; display: flex; gap: 16px; }
+  .bar a:hover { color: var(--green); }
+  .bar a:focus-visible { outline: 2px solid #F5A524; outline-offset: 2px; }
+  #redoc-error { display: none; padding: 32px 16px; max-width: 640px; margin: 0 auto; }
+  @media (max-width: 520px) { .bar nav a.hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<header class="bar">
+  <a class="brand" href="./"><img src="assets/logo.svg" alt="">Bermi Connect</a>
+  <nav><a href="./">Guides</a><a href="user-guide.html" class="hide-sm">User guide</a><a href="openapi.yaml" download>openapi.yaml</a></nav>
+</header>
+<div id="redoc"></div>
+<div id="redoc-error"><h2>The reference could not load</h2><p>The Redoc script is loaded from a CDN. Check your connection, or open <a href="openapi.yaml">openapi.yaml</a> in any OpenAPI viewer.</p></div>
+<script src="https://cdn.jsdelivr.net/npm/redoc@2.1.5/bundles/redoc.standalone.js"></script>
+<script>
+  (function () {
+    if (!window.Redoc) { document.getElementById("redoc-error").style.display = "block"; return; }
+    Redoc.init("openapi.yaml", {
+      scrollYOffset: 56,
+      hideDownloadButton: false,
+      expandResponses: "200,201,202",
+      jsonSampleExpandLevel: 3,
+      sortTagsAlphabetically: false,
+      theme: {
+        colors: { primary: { main: "#0E7C66" }, success: { main: "#0E7C66" }, warning: { main: "#F5A524" }, text: { primary: "#0B1F1A" } },
+        typography: {
+          fontFamily: "Inter, system-ui, sans-serif", fontSize: "15px",
+          headings: { fontFamily: "'Bricolage Grotesque', Inter, sans-serif", fontWeight: "700" },
+          code: { fontFamily: "'JetBrains Mono', ui-monospace, monospace" }
+        },
+        sidebar: { backgroundColor: "#F4F8F6", activeTextColor: "#0E7C66" },
+        rightPanel: { backgroundColor: "#0B1F1A" }
+      }
+    }, document.getElementById("redoc"), function (err) {
+      if (err) document.getElementById("redoc-error").style.display = "block";
+    });
+  })();
+</script>
+</body>
+</html>
